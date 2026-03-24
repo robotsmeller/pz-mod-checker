@@ -93,6 +93,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_version()
             elif path == "/api/versions":
                 self._handle_versions()
+            elif path == "/api/docs":
+                self._handle_docs()
             else:
                 self.send_error(404)
         except Exception as e:
@@ -172,6 +174,17 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 versions.append(f.stem)
         versions.sort(key=lambda v: PZVersion.parse(v), reverse=True)
         self._send_json({"versions": versions})
+
+    def _handle_docs(self) -> None:
+        """Serve the local user guide markdown."""
+        docs_path = Path(__file__).resolve().parent.parent.parent / "docs" / "user-guide.md"
+        if not docs_path.is_file():
+            self._send_json({"error": "User guide not found"}, 404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", "text/markdown; charset=utf-8")
+        self.end_headers()
+        self.wfile.write(docs_path.read_bytes())
 
     def _handle_scan(self, params: dict) -> None:
         from ..manager import read_mod_list

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>PZ Mod Checker</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   <script>
     tailwind.config = {
       darkMode: 'class',
@@ -65,6 +66,30 @@
     /* Severity filter pills */
     .sev-pill { cursor: pointer; opacity: 0.4; transition: opacity 0.2s; }
     .sev-pill.active { opacity: 1; }
+    /* Docs panel */
+    #docs-panel { position: fixed; inset: 0; z-index: 50; display: none; }
+    #docs-panel.open { display: flex; }
+    #docs-backdrop { position: absolute; inset: 0; background: rgba(0,0,0,0.6); }
+    #docs-content { position: relative; margin: 2rem auto; width: 90%; max-width: 800px;
+                    max-height: calc(100vh - 4rem); overflow-y: auto; background: #1e293b;
+                    border: 1px solid #334155; border-radius: 0.75rem; padding: 2rem; }
+    #docs-content h1 { font-size: 1.5rem; font-weight: 700; color: #4ade80; margin-bottom: 1rem; }
+    #docs-content h2 { font-size: 1.15rem; font-weight: 600; color: #e2e8f0; margin-top: 1.5rem; margin-bottom: 0.5rem;
+                       padding-bottom: 0.25rem; border-bottom: 1px solid #334155; }
+    #docs-content h3 { font-size: 1rem; font-weight: 600; color: #cbd5e1; margin-top: 1rem; margin-bottom: 0.4rem; }
+    #docs-content p { color: #94a3b8; margin-bottom: 0.75rem; font-size: 0.875rem; line-height: 1.6; }
+    #docs-content ul, #docs-content ol { color: #94a3b8; margin-bottom: 0.75rem; padding-left: 1.5rem; font-size: 0.875rem; }
+    #docs-content li { margin-bottom: 0.25rem; }
+    #docs-content code { background: #0f172a; color: #4ade80; padding: 0.1rem 0.35rem; border-radius: 3px; font-size: 0.8rem; }
+    #docs-content pre { background: #0f172a; border: 1px solid #334155; border-radius: 0.5rem;
+                        padding: 1rem; overflow-x: auto; margin-bottom: 1rem; }
+    #docs-content pre code { background: none; padding: 0; color: #e2e8f0; }
+    #docs-content table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.8rem; }
+    #docs-content th { text-align: left; padding: 0.5rem; background: #0f172a; color: #e2e8f0; border: 1px solid #334155; }
+    #docs-content td { padding: 0.5rem; border: 1px solid #334155; color: #94a3b8; }
+    #docs-content strong { color: #e2e8f0; }
+    #docs-content hr { border: none; border-top: 1px solid #334155; margin: 1.5rem 0; }
+    #docs-content a { color: #4ade80; text-decoration: underline; }
     /* Dev mode: hide dev-only elements by default */
     .dev-only, .dev-only-block, .dev-only-inline { display: none !important; }
     body.dev-mode .dev-only { display: flex !important; }
@@ -76,6 +101,18 @@
 
   <!-- Toast container -->
   <div id="toast-container"></div>
+
+  <!-- Docs panel (overlay) -->
+  <div id="docs-panel">
+    <div id="docs-backdrop" onclick="closeDocs()"></div>
+    <div id="docs-content">
+      <div class="flex justify-between items-center mb-4">
+        <span class="text-xs text-slate-500" id="docs-source"></span>
+        <button onclick="closeDocs()" class="text-slate-400 hover:text-slate-200 text-lg leading-none">&times;</button>
+      </div>
+      <div id="docs-body"><div class="spinner mx-auto"></div></div>
+    </div>
+  </div>
 
   <!-- Header -->
   <header class="bg-surface-2 border-b border-surface-3 px-6 py-4 flex items-center justify-between">
@@ -248,7 +285,7 @@
       <div class="flex items-center gap-4">
         <span>PZ Mod Checker by <a href="https://steamcommunity.com/id/robotsmeller" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">@robotsmeller</a></span>
         <a href="https://github.com/rob-kingsbury/pz-mod-checker" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">GitHub</a>
-        <a href="https://github.com/rob-kingsbury/pz-mod-checker#readme" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">User Guide</a>
+        <a href="#" onclick="openDocs(); return false;" class="text-slate-400 hover:text-pz-green transition-colors">User Guide</a>
       </div>
       <label class="flex items-center gap-2 cursor-pointer select-none">
         <span class="text-slate-500">Dev Mode</span>
@@ -1138,6 +1175,61 @@ async function bisectAction(action) {
     el.innerHTML = errorBox('Bisect action failed: ' + e.message);
   }
 }
+
+/* ======================================================================
+   Inline Docs
+   ====================================================================== */
+const DOCS_GITHUB_URL = 'https://raw.githubusercontent.com/rob-kingsbury/pz-mod-checker/main/docs/user-guide.md';
+const DOCS_FALLBACK_URL = 'https://github.com/rob-kingsbury/pz-mod-checker/blob/main/docs/user-guide.md';
+let docsLoaded = false;
+
+function openDocs() {
+  $('docs-panel').classList.add('open');
+  if (!docsLoaded) loadDocs();
+}
+
+function closeDocs() {
+  $('docs-panel').classList.remove('open');
+}
+
+async function loadDocs() {
+  const body = $('docs-body');
+  const source = $('docs-source');
+  body.innerHTML = '<div class="flex justify-center py-8"><span class="spinner"></span></div>';
+
+  // Try GitHub first (latest upstream), then fall back to local bundled copy
+  let md = null;
+  let src = '';
+
+  try {
+    const res = await fetch(DOCS_GITHUB_URL);
+    if (res.ok) { md = await res.text(); src = 'Loaded from GitHub (latest)'; }
+  } catch (e) { /* network error, try local */ }
+
+  if (!md) {
+    try {
+      const res = await fetch('/api/docs');
+      if (res.ok) { md = await res.text(); src = 'Loaded from local install'; }
+    } catch (e) { /* local also failed */ }
+  }
+
+  if (md && typeof marked !== 'undefined') {
+    body.innerHTML = marked.parse(md);
+    source.textContent = src;
+    docsLoaded = true;
+  } else {
+    body.innerHTML = `
+      <div class="text-center py-8">
+        <p class="text-slate-400 mb-4">Could not load the user guide.</p>
+        <a href="${DOCS_FALLBACK_URL}" target="_blank"
+           class="text-pz-green underline">View on GitHub</a>
+      </div>`;
+    source.textContent = '';
+  }
+}
+
+// Close docs with Escape key
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDocs(); });
 
 /* ======================================================================
    Header Refresh
