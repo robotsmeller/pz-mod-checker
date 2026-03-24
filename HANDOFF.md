@@ -1,144 +1,123 @@
 # PZ Mod Checker -- Handoff
 
-**Last Updated:** 2026-03-24 (end of Session 3)
+**Last Updated:** 2026-03-24 (end of Session 4)
 
 ## Current State
 
-GUI v2 complete with full audit fixes, accessibility, workshop integration, and test coverage. Ready for distribution (PyInstaller/.exe).
+Rule quality overhaul complete. False positives reduced from 100% to 30% of mods flagged (breaking/warning). New condition system, 6 new rules, confidence/group metadata, GUI/CLI group rendering. 65 tests passing.
 
 ## What's Working
 
-- **Scanner** -- 51 JSON rules covering B42.0 through B42.15, version-keyed filtering
+- **Scanner** -- 57 JSON rules covering B42.0 through B42.15, version-keyed filtering
+- **Rule Engine** -- Conditional rules (8 condition types, AND logic), confidence levels, rule groups
 - **Diagnose** -- Parses console.txt, identifies mod errors with MOD attribution, resolves names to IDs
 - **Manager** -- Read/write default.txt, enable/disable mods, profiles, backups
 - **Workshop** -- Steam API queries with 24h cache, staleness detection, update checking in GUI
 - **Bisect** -- Binary search with dependency groups, state persistence, diagnose shortcut
-- **CLI** -- 4 subcommands (scan, diagnose, manage, bisect) + --gui flag
-- **Web GUI v2** -- Full dashboard at :8642 (see details below)
-- **Tests** -- 51 tests, all passing
+- **CLI** -- 4 subcommands (scan, diagnose, manage, bisect) + --gui flag, grouped output
+- **Web GUI v2** -- Full dashboard at :8642, group-first finding rendering, confidence badges
+- **Tests** -- 65 tests, all passing (14 new condition tests)
 - **Packaging** -- pyproject.toml, pip install -e . works, JSON rules
-- **GitHub** -- Repo at robotsmeller/pz-mod-checker, issues tracked
+- **GitHub** -- Repo at robotsmeller/pz-mod-checker, 1 open issue (#9)
 
-## GUI v2 (Session 3)
+## Session 4 Summary
 
-### Global
-- **Scope bar**: Active Mods / All Installed / Profile radio buttons (persistent across sessions)
-- **Tab descriptions**: each tab explains use case and expected outcomes
-- **Footer**: credits (@robotsmeller), GitHub link, inline User Guide, Dev Mode toggle
-- **Themed confirm modals** replace all native confirm() dialogs
-- **Toast notifications** replace all alert() calls
-- **Version check**: header badge when newer GitHub release available
-- **Inline User Guide**: fetches from GitHub (versioned tag, falls back to main, then local)
+### Rule Quality (Phase 1)
+False positive reduction for structural rules:
 
-### Scan Tab
-- Version dropdown from rule files, auto-detects PZ version, labels like "42.15+ (latest)"
-- Severity filter toggles (role="button", aria-pressed, keyboard-accessible)
-- Results sorted by severity, paginated (25/page), searchable
-- Findings grouped by severity within each mod (breaking expanded, others collapsed)
-- Animated +/- indicators (CSS bar collapse)
-- Inline Disable buttons, "Disable All Breaking" bulk action
-- Workshop badges when update data loaded
+| Rule | Before | After | Change |
+|------|--------|-------|--------|
+| `b42-13-registry-required` | 257 mods | 8 mods | -97% (condition: has TraitFactory/ProfessionFactory) |
+| `b42-15-translation-json` | 210 mods | 0 mods | -100% (condition: has old .txt translations) |
+| `b42-modinfo-versionmin` | 189 mods | 66 mods | -65% (condition: has 42/ folder) |
+| `b42-versioned-folder` | 149 mods | 20 mods | -87% (condition: has versionMin + no common/) |
+| `b42-common-folder` | 83 mods (warn) | 72 mods (info) | downgraded + condition |
+| `b42-getspecificplayer` | 46 mods (warn) | 46 mods (info) | downgraded to info |
+| **Breaking/warning total** | **258/258 (100%)** | **78/258 (30%)** | **-70%** |
 
-### Dev Mode (footer toggle, persists in localStorage)
-- Rule IDs on each finding
-- Per-mod export: TXT / MD / JSON
-- Export All: full scan report to clipboard
+Key insight from 42.15 patch notes: only ONE of `common/` or `42/` folder is required, not both.
 
-### Diagnose Tab
-- User-friendly require() failure explanations with fix suggestions
-- Inline Disable per mod
-- Session info grid
+### New Rules (Phase 2)
+6 new rules from Steam News API + Indie Stone forum research:
 
-### Mods Tab
-- Sort: A-Z, Z-A, Enabled first, Disabled first, Updates first
-- Scope-aware filtering
-- Check for Updates: queries Steam Workshop, shows badges (update available, stale, B42 OK, updated)
-- Toggle switches: role="switch", aria-checked, keyboard-accessible
-- Bulk actions scope to filtered/visible list only
+| Rule | Version | Mods Hit | Severity |
+|------|---------|----------|----------|
+| `b42-removed-isinventorypanecontextmenu` | 42.0 | 28 | breaking |
+| `b42-12-vehiclemechanics-ui` | 42.12 | 12 | warning |
+| `b42-13-moodletype-register` | 42.13 | 5 | warning |
+| `b42-13-bodylocation-setexclusive` | 42.13 | 4 | warning |
+| `b42-13-weaponcategory-register` | 42.13 | 2 | warning |
+| `b42-5-issearchmanager-removed` | 42.5 | 0 | breaking |
 
-### Bisect Tab
-- 3-step onboarding guide (single source, rendered dynamically)
-- Progress bar with round/suspect/known-good counts
+Also added 42.5.0.json rule file (new version coverage).
 
-### Security
-- XSS eliminated: all onclick handlers use data-attr + event delegation
-- No CORS headers (same-origin only)
-- try/except on all handlers returns JSON errors
-- 400 on bad JSON, 413 on oversized body
-- Content-Length limit (1MB)
+### Engine Improvements (Phase 3)
+1. **Condition system** -- 8 condition types with AND logic, evaluated before rule application
+2. **`_make_finding` helper** -- centralized Finding construction (was 6 separate sites)
+3. **Confidence field** -- `certain` (48 rules), `likely` (6), `speculative` (3)
+4. **Group field** -- 10 rule groups: inventory-ui-rewrite, crafting-overhaul, registry-system, character-stat-refactor, ammo-rework, blacksmithing-items, body-location-renames, crushed-ore-removal, mod-structure, gamemode-renames
+5. **GUI group rendering** -- group-first with max-severity badge, breaking expanded
+6. **CLI group rendering** -- collapsed lines in non-verbose, expanded in verbose
+7. **Confidence badges** -- displayed in GUI and CLI, speculative findings dimmed
 
-### Accessibility
-- Tab bar: role="tablist", role="tab", aria-selected, aria-controls, role="tabpanel"
-- Toggle switches: role="switch", aria-checked, tabindex
-- Severity pills: role="button", aria-pressed, keyboard handler
-- Docs panel: role="dialog", aria-modal, focus trap, focus restore
-- Scope profile select: aria-label
-- Severity badges include text labels (brk/wrn/inf)
-
-### Performance
-- ThreadingHTTPServer prevents UI freeze during scan
-- console.txt parsing cached with mtime check
-- discover_mods() cached with mtime-based invalidation
-- Workshop API responses cached (24h TTL)
+### Test Coverage
+14 new condition tests:
+- 8 condition types × pass/fail
+- AND composition test
+- Invalid regex fallback test
+- Empty condition test
 
 ## Open Issues
 
-- #1 -- Crowdsourced mod compatibility data (future)
-- #2 -- PyInstaller .exe + pip publish (next priority)
-- #3 -- Documentation (ongoing)
+- #9 -- No loading state on disable/enable — double-click fires twice (from Session 3)
 
-## Critical: Rule Quality (discovered end of session 3)
+## Architecture
 
-Scanning 258 mods flags 258/258 with issues (100%). Structural rules are too broad:
+### Condition System
+Rules can have a `condition` dict that must pass before the rule is applied. Conditions AND together.
 
-| Rule | Mods Hit | Problem |
-|------|----------|---------|
-| `b42-13-registry-required` | 257/258 | Flags ANY mod without registries.lua — should only flag mods with trait/profession code |
-| `b42-15-translation-json` | 210/258 | Flags ANY mod without JSON translations — most mods have none |
-| `b42-modinfo-versionmin` | 189/258 | Missing versionMin — noisy informational |
-| `b42-versioned-folder` | 149/258 | Missing `42/` folder — many B42 mods use root structure |
+| Condition | Effect |
+|-----------|--------|
+| `has_lua_pattern` | Mod's Lua files contain regex match |
+| `has_files_in_dir` + `file_glob` | Directory contains matching files |
+| `has_lua_files` | Mod has any .lua files |
+| `has_content_dir` | Mod has root media/lua or media/scripts |
+| `has_b42_folder` / `not_has_b42_folder` | Mod has/doesn't have 42/ folder |
+| `not_has_common_folder` | Mod doesn't have common/ folder |
+| `has_version_min` | mod.info declares versionMin |
 
-Pattern-based rules (API removals, renames) are accurate: ISInventoryPane hits 33 mods, transferAll hits 15.
+### Finding Pipeline
+`Rule` → `_make_finding(mod, rule, **overrides)` → `Finding` → reporters
 
-## Next Session: Rule Engineering
+Both `confidence` and `group` flow from Rule through Finding to JSON/GUI/CLI automatically via `dataclasses.asdict()`.
 
-### Phase 1: Fix False Positives (do first)
-- Tighten structural rules with conditional checks ("if mod does Y, does it have X?")
-- Target: <30% of mods flagged (down from 100%)
-- This is logic refinement, no web research needed
+### Rule Groups
+Groups collapse related findings in GUI (details/summary) and CLI (single line in non-verbose). Max severity of group members shown as the group badge.
 
-### Phase 2: Research New Rules
-- **Steam News API** (programmatic): `GET https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=108600&maxlength=0&count=100` -- public, no key needed, returns PZ patch notes
-- **SteamDB** (manual reference only, DO NOT SCRAPE): https://steamdb.info/app/108600/patchnotes/
-- **Secondary**: PZwiki version history, FWolfe modding guide, awesome-b42-resources
-- Use extended thinking to synthesize changelog entries into rule candidates
-- Cross-reference against existing 51 rules to find gaps
+## Next Session
 
-### Phase 3: Validation
-- Run refined rules against 258-mod test set
-- Verify real issues still caught, false positives eliminated
+### Priority: Distribution (Issue #2)
+- PyInstaller .exe packaging
+- pip publish to PyPI
+- Consider splitting index.html into modules (~1600 lines)
 
-### After Rules
-- Distribution (PyInstaller .exe + pip publish) -- issue #2
-- Consider splitting index.html into modules (~1500 lines)
+### Optional: Further Rule Refinement
+- `b42-14-revolver-ammo-changed` (7 mods, 314 hits) -- `Bullets45` pattern may be too broad
+- Research B42.1-42.4 and 42.6-42.7 patch notes (no rule files for these yet)
+- Crowdsourced mod compatibility data (Issue #1)
 
-## Session 3 Commits (17)
+### Technical Debt
+- Workshop module uses `confidence` with `high/medium/low` vocabulary vs rule engine `certain/likely/speculative` — consider harmonizing
+- Confidence filtering in GUI (currently display-only)
+
+## Session 4 Commits
 ```
-25bdcdd Re-scan after Disable All Breaking Mods
-5e52571 Dynamic bisect round estimate based on active mod count
-cc708ce Workshop badges link to Steam Workshop pages
-fca4d5c Update README, user guide, and HANDOFF for session 3 close
-cec8930 Gitignore audit-report.md
-db15866 Add .gitignore entries for scroll-analysis-output and .claude/settings
-f989bbf Test pass: fix 5 bugs, add 8 unit tests, 51 tests passing
-e2c047f Add Workshop update checking to GUI
-4ba2a0c Fix medium audit findings #14-#18, update HANDOFF
-3da57dd Fix 10 audit findings: XSS, accessibility, UX, performance
-9acb87d Global scope bar: Active/All/Profile scoping across all tabs
-d9e0c47 Tab descriptions, versioned docs, update checker, sort fix
-4e00812 Update GitHub URLs to robotsmeller org
-2cb7f30 Add inline user guide, split README into project page + docs
-a19efca GUI: dev mode, pagination, animated +/-, footer, mod sorting
-1aa04f4 Fix GUI init: split fetches so dropdown/header load independently
-05b8a89 GUI polish: 17 improvements from audit feedback
+d7a0381 GUI/CLI: group-first rendering, confidence badges
+cd8dd86 Add confidence/group fields, extract _make_finding helper
+8938fc9 Add 14 condition tests covering all 8 condition types
+```
+Plus earlier session 4 commits (rule quality + new rules):
+```
+[from earlier in session]
+Condition system, false positive fixes, 6 new rules, closed 9 issues
 ```
