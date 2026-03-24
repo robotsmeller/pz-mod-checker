@@ -60,18 +60,30 @@ def discover_mods(mod_dirs: list[Path] | None = None) -> list[ModInfo]:
             if not entry.is_dir():
                 continue
 
-            mod_info = parse_mod_info(entry)
-            if mod_info is None:
-                continue
+            # Try direct mod (user mods: Zomboid/mods/<ModName>/)
+            found = _try_add_mod(entry, mods, seen_ids)
 
-            # Deduplicate by mod ID (Workshop may duplicate user mods)
-            if mod_info.mod_id in seen_ids:
-                continue
-            seen_ids.add(mod_info.mod_id)
-
-            mods.append(mod_info)
+            # Try Workshop structure: <workshop_id>/mods/<ModName>/
+            if not found:
+                workshop_mods = entry / "mods"
+                if workshop_mods.is_dir():
+                    for sub_mod in sorted(workshop_mods.iterdir()):
+                        if sub_mod.is_dir():
+                            _try_add_mod(sub_mod, mods, seen_ids)
 
     return mods
+
+
+def _try_add_mod(path: Path, mods: list[ModInfo], seen_ids: set[str]) -> bool:
+    """Try to parse a mod from a directory. Returns True if successful."""
+    mod_info = parse_mod_info(path)
+    if mod_info is None:
+        return False
+    if mod_info.mod_id in seen_ids:
+        return False
+    seen_ids.add(mod_info.mod_id)
+    mods.append(mod_info)
+    return True
 
 
 def discover_single_mod(mod_path: Path) -> ModInfo | None:
