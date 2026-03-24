@@ -175,6 +175,8 @@ def _split_change_blocks(text: str) -> list[dict[str, str]]:
             if key.startswith("- "):
                 key = key[2:].strip()
             value = value.strip().strip('"').strip("'")
+            # Unescape doubled backslashes from YAML (\\s -> \s, \\b -> \b, etc.)
+            value = value.replace("\\\\", "\\")
             current[key] = value
 
     if current:
