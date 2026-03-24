@@ -645,9 +645,10 @@ function renderScanResults(data) {
     const ic = findings.filter(f => f.severity === 'info').length;
     const hasBreaking = bc > 0;
     const ws = workshopData[modId];
+    const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
     const wsBadge = !ws ? '' :
-      ws.has_update ? `<span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">update on Workshop</span>` :
-      ws.reason === 'not_updated_since_b42' ? `<span class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">not updated for B42</span>` :
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to open Workshop page">update on Workshop</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">not updated for B42</a>` :
       ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">B42 OK</span>` : '';
     html += `
       <details class="card mb-2">
@@ -1054,7 +1055,8 @@ async function checkWorkshopUpdates() {
     status.innerHTML = `Workshop check: <strong class="text-slate-300">${data.total_checked}</strong> mods checked. ` +
       (updates > 0 ? `<strong class="text-amber-400">${updates}</strong> have newer versions on Workshop. ` : '') +
       (stale > 0 ? `<strong class="text-red-400">${stale}</strong> not updated since B42. ` : '') +
-      (updates === 0 && stale === 0 ? '<strong class="text-pz-green">All mods appear up to date.</strong>' : '');
+      (updates === 0 && stale === 0 ? '<strong class="text-pz-green">All mods appear up to date.</strong>' : '') +
+      (updates > 0 ? '<br><span class="text-slate-500">Click the amber badges to open Workshop pages. Steam usually auto-updates, but you may need to restart Steam or unsub/resub to force it.</span>' : '');
     filterMods(); // re-render with badges
     // Also re-render scan results if they exist
     if (lastScanData) renderScanResults(lastScanData);
@@ -1093,9 +1095,10 @@ function renderMods(mods) {
 
   el.innerHTML = mods.map(m => {
     const ws = workshopData[m.mod_id];
+    const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
     const badge = !ws ? '' :
-      ws.has_update ? `<span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">update available</span>` :
-      ws.reason === 'not_updated_since_b42' ? `<span class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">stale</span>` :
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2 hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to open Workshop page">update available</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">stale</a>` :
       ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">B42 OK</span>` :
       ws.reason === 'updated_post_b42' ? `<span class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">updated</span>` : '';
     return `
