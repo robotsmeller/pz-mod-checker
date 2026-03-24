@@ -28,6 +28,11 @@
     .severity-breaking { background: #991b1b; color: #fecaca; }
     .severity-warning { background: #92400e; color: #fde68a; }
     .severity-info { background: #1e40af; color: #bfdbfe; }
+    .confidence-likely { background: #1e3a5f; color: #93c5fd; }
+    .confidence-speculative { background: #334155; color: #64748b; }
+    .finding-speculative { opacity: 0.6; }
+    .rule-group-header { background: #1e293b; border: 1px solid #334155; border-radius: 0.375rem; }
+    .rule-group-header summary:hover { background: #334155; border-radius: 0.375rem; }
     .toggle-track { width: 40px; height: 22px; border-radius: 11px; background: #475569;
                     cursor: pointer; position: relative; transition: background 0.2s; }
     .toggle-track.on { background: #059669; }
@@ -708,13 +713,12 @@ function renderScanResults(data) {
 
 function confidenceBadge(conf) {
   if (!conf || conf === 'certain') return '';
-  const cls = conf === 'speculative' ? 'text-slate-600 bg-slate-800' : 'text-slate-500 bg-slate-800';
-  return ` <span class="text-[10px] px-1 py-0 rounded ${cls}">${conf}</span>`;
+  return ` <span class="confidence-${conf} text-[10px] font-medium px-1.5 py-0.5 rounded leading-tight">${conf}</span>`;
 }
 
 function renderFinding(f) {
-  const opacity = f.confidence === 'speculative' ? ' opacity-60' : '';
-  return `<div class="bg-surface-1 rounded p-3 text-sm${opacity}">
+  const specClass = f.confidence === 'speculative' ? ' finding-speculative' : '';
+  return `<div class="bg-surface-1 rounded p-3 text-sm${specClass}">
     <div class="flex items-start gap-2 mb-1">
       ${severityBadge(f.severity)}${confidenceBadge(f.confidence)}
       <span class="text-slate-200">${esc(f.message)}</span>
@@ -760,13 +764,16 @@ function renderFindingGroups(findings) {
     (sevOrder[maxSeverity(a[1])] ?? 2) - (sevOrder[maxSeverity(b[1])] ?? 2)
   );
 
+  const sortBySev = (a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
+
   for (const [groupName, items] of sortedGroups) {
+    items.sort(sortBySev);
     const gSev = maxSeverity(items);
     const isBreaking = gSev === 'breaking';
-    html += `<details${isBreaking ? ' open' : ''} class="border border-surface-3 rounded">
-      <summary class="px-3 py-2 text-xs font-medium text-slate-400 hover:bg-surface-3 rounded cursor-pointer flex items-center justify-between">
-        <span>${severityBadge(gSev)} <span class="text-slate-300">${groupLabel(groupName)}</span></span>
-        <span class="text-slate-500">${items.length} issue${items.length !== 1 ? 's' : ''}</span>
+    html += `<details${isBreaking ? ' open' : ''} class="rule-group-header">
+      <summary class="px-3 py-2 text-sm text-slate-300 flex items-center justify-between cursor-pointer">
+        <div class="flex items-center gap-2">${severityBadge(gSev)} <span class="font-medium">${groupLabel(groupName)}</span></div>
+        <span class="text-xs text-slate-500">${items.length} finding${items.length !== 1 ? 's' : ''}</span>
       </summary>
       <div class="px-2 pb-2 space-y-1">${items.map(renderFinding).join('')}</div>
     </details>`;
