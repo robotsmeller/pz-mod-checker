@@ -90,10 +90,11 @@ Toggle mods on/off without launching PZ. Reads and writes `~/Zomboid/mods/defaul
 
 ### GUI
 
-- **Search** and **sort** (A-Z, Z-A, Enabled first, Disabled first)
+- **Search** and **sort** (A-Z, Z-A, Enabled first, Disabled first, Updates first)
 - **Toggle switches** to enable/disable individual mods
 - **Bulk actions**: Enable All, Disable All
-- **Profiles**: Save and load named mod configurations
+- **Check for Updates**: Queries Steam Workshop to detect mods with newer versions or stale mods not updated since B42. Shows badges: "update available", "stale", "B42 OK", "updated"
+- **Profiles**: Save and load named mod configurations (via global scope bar)
 
 ### CLI
 

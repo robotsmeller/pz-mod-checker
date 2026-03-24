@@ -122,6 +122,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_versions()
             elif path == "/api/docs":
                 self._handle_docs()
+            elif path == "/api/workshop/check":
+                self._handle_workshop_check()
             else:
                 self.send_error(404)
         except Exception as e:
@@ -224,6 +226,48 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/markdown; charset=utf-8")
         self.end_headers()
         self.wfile.write(docs_path.read_bytes())
+
+    def _handle_workshop_check(self) -> None:
+        """Check Workshop for mod update status."""
+        from ..workshop import check_workshop_updates, extract_workshop_id
+
+        mods = _cached_discover_mods()
+        suggestions, metadata = check_workshop_updates(mods)
+
+        # Build response keyed by mod_id for easy client-side lookup
+        by_mod: dict[str, dict] = {}
+        for s in suggestions:
+            by_mod[s.mod_id] = {
+                "reason": s.reason,
+                "confidence": s.confidence,
+                "detail": s.detail,
+                "last_updated": s.last_updated,
+                "action": s.action,
+                "workshop_id": s.workshop_id,
+            }
+
+        # Also compute local file age for comparison
+        for mod in mods:
+            wid = extract_workshop_id(mod)
+            if not wid or mod.mod_id not in by_mod:
+                continue
+            meta = metadata.get(wid)
+            if meta and meta.time_updated > 0:
+                # Check if local mod files are older than Workshop update
+                try:
+                    local_mtime = mod.path.stat().st_mtime
+                    by_mod[mod.mod_id]["workshop_updated"] = meta.time_updated
+                    by_mod[mod.mod_id]["local_mtime"] = int(local_mtime)
+                    by_mod[mod.mod_id]["has_update"] = meta.time_updated > local_mtime
+                except OSError:
+                    pass
+
+        self._send_json({
+            "total_checked": len(by_mod),
+            "total_with_updates": sum(1 for v in by_mod.values() if v.get("has_update")),
+            "total_stale": sum(1 for v in by_mod.values() if v.get("reason") == "not_updated_since_b42"),
+            "mods": by_mod,
+        })
 
     def _handle_scan(self, params: dict) -> None:
         from ..manager import read_mod_list

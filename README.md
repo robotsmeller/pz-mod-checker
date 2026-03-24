@@ -98,6 +98,7 @@ When running the web GUI (`--gui`), all endpoints are available at `http://local
 | POST | `/api/bisect/abort` | Abort bisect, restore backup |
 | GET | `/api/version` | Tool version, PZ version, mod counts |
 | GET | `/api/versions` | Available PZ versions from rule files |
+| GET | `/api/workshop/check` | Check Steam Workshop for mod updates |
 
 ---
 

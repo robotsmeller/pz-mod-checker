@@ -234,6 +234,7 @@
             <option value="za">Z &rarr; A</option>
             <option value="enabled">Enabled first</option>
             <option value="disabled">Disabled first</option>
+            <option value="updates">Updates available first</option>
           </select>
           <button onclick="bulkMods('enable')"
                   class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
@@ -241,8 +242,11 @@
                   class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors">Disable All</button>
           <button onclick="refreshMods()"
                   class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-4 py-2 rounded text-sm transition-colors">Refresh</button>
+          <button id="btn-check-updates" onclick="checkWorkshopUpdates()"
+                  class="bg-sky-700 hover:bg-sky-600 text-white px-4 py-2 rounded text-sm transition-colors">Check for Updates</button>
         </div>
         <div id="mod-count" class="text-xs text-slate-400 mb-3"></div>
+        <div id="workshop-status" class="text-xs text-slate-500 mb-3 hidden"></div>
         <div id="mod-list" class="space-y-1 max-h-[60vh] overflow-y-auto pr-2"></div>
       </div>
 
@@ -327,6 +331,7 @@ function toggleDevMode() {
 let currentScope = localStorage.getItem('pzmc-scope') || 'active';
 let currentProfileName = localStorage.getItem('pzmc-scope-profile') || '';
 let profilesCache = []; // [{name, mod_count, mod_ids}]
+let workshopData = {}; // mod_id -> {reason, detail, has_update, last_updated, ...}
 
 function setScope(scope) {
   currentScope = scope;
@@ -632,12 +637,18 @@ function renderScanResults(data) {
     const wc = findings.filter(f => f.severity === 'warning').length;
     const ic = findings.filter(f => f.severity === 'info').length;
     const hasBreaking = bc > 0;
+    const ws = workshopData[modId];
+    const wsBadge = !ws ? '' :
+      ws.has_update ? `<span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">update on Workshop</span>` :
+      ws.reason === 'not_updated_since_b42' ? `<span class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">not updated for B42</span>` :
+      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">B42 OK</span>` : '';
     html += `
       <details class="card mb-2">
         <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
           <div class="flex items-center gap-3">
             <span class="font-medium text-slate-100">${esc(modName)}</span>
             <span class="text-xs text-slate-500">${esc(modId)}</span>
+            ${wsBadge}
           </div>
           <div class="flex gap-2 items-center">
             ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc} brk</span>` : ''}
@@ -1021,6 +1032,35 @@ async function disableBreaking() {
 /* ======================================================================
    MODS
    ====================================================================== */
+async function checkWorkshopUpdates() {
+  const btn = $('btn-check-updates');
+  const status = $('workshop-status');
+  btn.disabled = true;
+  btn.textContent = 'Checking...';
+  status.classList.remove('hidden');
+  status.textContent = 'Querying Steam Workshop...';
+  try {
+    const data = await api('GET', '/api/workshop/check');
+    workshopData = data.mods || {};
+    const updates = data.total_with_updates || 0;
+    const stale = data.total_stale || 0;
+    status.innerHTML = `Workshop check: <strong class="text-slate-300">${data.total_checked}</strong> mods checked. ` +
+      (updates > 0 ? `<strong class="text-amber-400">${updates}</strong> have newer versions on Workshop. ` : '') +
+      (stale > 0 ? `<strong class="text-red-400">${stale}</strong> not updated since B42. ` : '') +
+      (updates === 0 && stale === 0 ? '<strong class="text-pz-green">All mods appear up to date.</strong>' : '');
+    filterMods(); // re-render with badges
+    // Also re-render scan results if they exist
+    if (lastScanData) renderScanResults(lastScanData);
+    toast(`Workshop check complete: ${updates} updates available`, updates > 0 ? 'info' : 'success');
+  } catch (e) {
+    status.textContent = 'Workshop check failed: ' + e.message;
+    toast('Workshop check failed: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check for Updates';
+  }
+}
+
 async function refreshMods() {
   const el = $('mod-list');
   loading(el);
@@ -1043,18 +1083,25 @@ function renderMods(mods) {
     return;
   }
 
-  el.innerHTML = mods.map(m => `
+  el.innerHTML = mods.map(m => {
+    const ws = workshopData[m.mod_id];
+    const badge = !ws ? '' :
+      ws.has_update ? `<span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">update available</span>` :
+      ws.reason === 'not_updated_since_b42' ? `<span class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">stale</span>` :
+      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">B42 OK</span>` :
+      ws.reason === 'updated_post_b42' ? `<span class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">updated</span>` : '';
+    return `
     <div class="flex items-center justify-between bg-surface-1 rounded px-3 py-2 hover:bg-surface-3 transition-colors mod-row" data-id="${esc(m.mod_id)}">
       <div class="flex-1 min-w-0 mr-3">
-        <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}</div>
-        <div class="text-xs text-slate-500 truncate">${esc(m.mod_id)}</div>
+        <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}${badge}</div>
+        <div class="text-xs text-slate-500 truncate">${esc(m.mod_id)}${ws?.last_updated ? ` \u00B7 Workshop: ${esc(ws.last_updated)}` : ''}</div>
       </div>
       <button class="toggle-track ${m.enabled ? 'on' : ''}" role="switch" aria-checked="${m.enabled}"
               tabindex="0" data-action="toggle-mod" data-mod-id="${esc(m.mod_id)}" data-enable="${!m.enabled}">
         <div class="toggle-thumb"></div>
       </button>
-    </div>
-  `).join('');
+    </div>`;
+  }).join('');
 }
 
 function filterMods() {
@@ -1084,6 +1131,11 @@ function filterMods() {
     case 'za': list.sort((a, b) => name(b).localeCompare(name(a))); break;
     case 'enabled': list.sort((a, b) => (b.enabled ? 1 : 0) - (a.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
     case 'disabled': list.sort((a, b) => (a.enabled ? 1 : 0) - (b.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
+    case 'updates': list.sort((a, b) => {
+      const aUp = workshopData[a.mod_id]?.has_update ? 1 : 0;
+      const bUp = workshopData[b.mod_id]?.has_update ? 1 : 0;
+      return bUp - aUp || name(a).localeCompare(name(b));
+    }); break;
   }
 
   lastFilteredMods = list;
