@@ -1,15 +1,14 @@
-"""Load rule definitions from YAML files and no-comp.txt."""
+"""Load rule definitions from JSON files and no-comp.txt."""
 
 from __future__ import annotations
 
+import json
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
 
 from .version import PZVersion
-
-# Use stdlib configparser-style YAML parsing to avoid PyYAML dependency.
-# Our YAML is simple enough to parse manually.
 
 
 @dataclass
@@ -64,14 +63,14 @@ class RuleSet:
 
 
 def load_rules_from_dir(rules_dir: Path) -> list[Rule]:
-    """Load all rule YAML files from a directory."""
+    """Load all rule JSON files from a directory."""
     rules: list[Rule] = []
 
     if not rules_dir.is_dir():
         return rules
 
-    for yaml_file in sorted(rules_dir.glob("*.yaml")):
-        file_rules = _parse_yaml_rules(yaml_file)
+    for json_file in sorted(rules_dir.glob("*.json")):
+        file_rules = _parse_json_rules(json_file)
         rules.extend(file_rules)
 
     return rules
@@ -114,78 +113,25 @@ _VALID_RULE_KEYS = {
 }
 
 
-# --- Simple YAML parser (avoids PyYAML dependency) ---
+# --- JSON rule parser ---
 
-def _parse_yaml_rules(yaml_path: Path) -> list[Rule]:
-    """Parse a rule YAML file using a simple line-by-line parser.
+def _parse_json_rules(json_path: Path) -> list[Rule]:
+    """Parse a rule JSON file."""
+    try:
+        data = json.loads(json_path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError) as e:
+        print(f"Warning: Failed to load {json_path}: {e}", file=sys.stderr)
+        return []
 
-    Handles our specific YAML schema only — not a general YAML parser.
-    """
-    text = yaml_path.read_text(encoding="utf-8", errors="replace")
     rules: list[Rule] = []
-
-    # Split into change blocks
-    # Look for "- id:" as block delimiters
-    blocks = _split_change_blocks(text)
-
-    for block in blocks:
+    for block in data.get("changes", []):
         rule = _parse_rule_block(block)
         if rule:
             rules.append(rule)
-
     return rules
 
 
-def _split_change_blocks(text: str) -> list[dict[str, str]]:
-    """Split YAML text into individual change blocks."""
-    blocks: list[dict[str, str]] = []
-    current: dict[str, str] = {}
-    in_changes = False
-
-    for line in text.splitlines():
-        stripped = line.strip()
-
-        # Skip comments and empty lines
-        if not stripped or stripped.startswith("#"):
-            continue
-
-        # Detect changes section
-        if stripped == "changes:":
-            in_changes = True
-            continue
-
-        # Top-level fields (before changes:)
-        if not in_changes and ":" in stripped:
-            continue
-
-        if not in_changes:
-            continue
-
-        # New change block starts with "- id:"
-        if stripped.startswith("- id:"):
-            if current:
-                blocks.append(current)
-            current = {"id": stripped.split(":", 1)[1].strip()}
-            continue
-
-        # Continuation of current block
-        if current and ":" in stripped:
-            key, _, value = stripped.partition(":")
-            key = key.strip()
-            if key.startswith("- "):
-                key = key[2:].strip()
-            value = value.strip().strip('"').strip("'")
-            # Unescape doubled backslashes from YAML (\\s -> \s, \\b -> \b, etc.)
-            value = value.replace("\\\\", "\\")
-            current[key] = value
-
-    if current:
-        blocks.append(current)
-
-    return blocks
-
-
-def _parse_rule_block(block: dict[str, str]) -> Rule | None:
+def _parse_rule_block(block: dict[str, Any]) -> Rule | None:
     """Convert a parsed block dict into a Rule."""
     rule_id = block.get("id", "")
     if not rule_id:
@@ -200,14 +146,19 @@ def _parse_rule_block(block: dict[str, str]) -> Rule | None:
     if unknown:
         print(f"Warning: Rule '{rule_id}' has unknown fields: {unknown}", file=sys.stderr)
 
+    # Handle regex as bool (JSON native) or string (legacy)
+    regex_val = block.get("regex", False)
+    if isinstance(regex_val, str):
+        regex_val = regex_val.lower() in ("true", "yes", "1")
+
     return Rule(
         id=rule_id,
         type=block.get("type", ""),
         severity=block.get("severity", "warning"),
-        since=block.get("since", ""),
+        since=str(block.get("since", "")),
         description=block.get("description", ""),
         pattern=block.get("pattern", ""),
-        regex=block.get("regex", "").lower() in ("true", "yes", "1"),
+        regex=bool(regex_val),
         scan=block.get("scan", ""),
         path=block.get("path", ""),
         check=block.get("check", ""),

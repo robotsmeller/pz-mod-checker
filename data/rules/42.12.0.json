@@ -1,0 +1,41 @@
+{
+  "version": "42.12.0",
+  "summary": "Explosion API migration, FirePower rename, Metalworking->Blacksmithing",
+  "source": "https://pzwiki.net/wiki/Build_42.12.0",
+  "release_date": "2025-09-25",
+  "changes": [
+    {
+      "id": "b42-12-drawcircleexplosion-moved",
+      "type": "api_removal",
+      "severity": "breaking",
+      "since": "42.12.0",
+      "description": "drawCircleExplosion moved from IsoGridSquare to IsoTraps",
+      "pattern": "drawCircleExplosion",
+      "scan": "*.lua",
+      "context": "Explosion functions migrated to IsoTraps/IsoGenerator in 42.12"
+    },
+    {
+      "id": "b42-12-firepower-renamed",
+      "type": "api_rename",
+      "severity": "breaking",
+      "since": "42.12.0",
+      "description": "FirePower script property renamed to FireStartingEnergy/FireStartingChance",
+      "old_pattern": "FirePower",
+      "new_name": "FireStartingEnergy or FireStartingChance",
+      "scan": "*.txt",
+      "path": "media/scripts/",
+      "context": "Script property renamed in 42.12 for clarity"
+    },
+    {
+      "id": "b42-12-metalworking-renamed",
+      "type": "api_rename",
+      "severity": "info",
+      "since": "42.12.0",
+      "description": "Metalworking renamed to Blacksmithing in player-facing text",
+      "old_pattern": "Metalworking",
+      "new_name": "Blacksmithing",
+      "scan": "*.lua",
+      "context": "Skill/category renamed in 42.12"
+    }
+  ]
+}

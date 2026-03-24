@@ -558,6 +558,11 @@ def build_parser() -> argparse.ArgumentParser:
         description="Project Zomboid mod compatibility scanner, log diagnostics, and mod manager.",
     )
 
+    parser.add_argument("--gui", action="store_true",
+                        help="Launch the web GUI dashboard in your browser.")
+    parser.add_argument("--port", type=int, default=8642,
+                        help="Port for the GUI server (default: 8642).")
+
     subparsers = parser.add_subparsers(dest="command")
     _add_scan_parser(subparsers)
     _add_diagnose_parser(subparsers)
@@ -571,6 +576,11 @@ def main(argv: list[str] | None = None) -> int:
     """Main entry point."""
     parser = build_parser()
     args = parser.parse_args(argv)
+
+    if args.gui:
+        from .gui.server import start_server
+        start_server(port=args.port)
+        return 0
 
     if args.command is None:
         parser.print_help()

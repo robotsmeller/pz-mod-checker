@@ -15,7 +15,7 @@ from pz_mod_checker.rules.loader import (
     Rule,
     RuleSet,
     _parse_rule_block,
-    _split_change_blocks,
+    _parse_json_rules,
     load_no_comp,
     load_rules_from_dir,
 )
@@ -182,7 +182,7 @@ def test_print_scan_results_empty(capsys=None):
 
 
 # ============================================================
-# 3. YAML parser edge cases
+# 3. JSON parser edge cases
 # ============================================================
 
 def test_rule_with_empty_since_is_skipped():
@@ -230,24 +230,27 @@ def test_no_comp_pipe_in_reason():
         assert entries[0].reason == "Reason part1|part2|part3"
 
 
-def test_split_change_blocks_description_with_colons():
-    yaml_text = """
-version: "42.0.0"
-
-changes:
-
-  - id: colon-rule
-    type: api_removal
-    severity: breaking
-    since: "42.0.0"
-    description: "Removed: ISInventoryPage:refresh()"
-    pattern: "ISInventoryPage"
-"""
-    blocks = _split_change_blocks(yaml_text)
-    assert len(blocks) == 1
-    assert blocks[0]["id"] == "colon-rule"
-    # The description value should be present (after first colon split)
-    assert "description" in blocks[0]
+def test_parse_json_rules_description_with_colons():
+    with tempfile.TemporaryDirectory() as tmp:
+        tmp_path = Path(tmp)
+        json_file = tmp_path / "test.json"
+        json_file.write_text(json.dumps({
+            "version": "42.0.0",
+            "changes": [
+                {
+                    "id": "colon-rule",
+                    "type": "api_removal",
+                    "severity": "breaking",
+                    "since": "42.0.0",
+                    "description": "Removed: ISInventoryPage:refresh()",
+                    "pattern": "ISInventoryPage",
+                }
+            ]
+        }), encoding="utf-8")
+        rules = _parse_json_rules(json_file)
+        assert len(rules) == 1
+        assert rules[0].id == "colon-rule"
+        assert "Removed:" in rules[0].description
 
 
 def test_load_rules_from_dir_empty_directory():
@@ -457,7 +460,7 @@ if __name__ == "__main__":
     test_rule_with_empty_since_is_skipped()
     test_rule_with_unknown_fields_still_loads()
     test_no_comp_pipe_in_reason()
-    test_split_change_blocks_description_with_colons()
+    test_parse_json_rules_description_with_colons()
     test_load_rules_from_dir_empty_directory()
 
     test_unknown_rule_type_returns_empty()

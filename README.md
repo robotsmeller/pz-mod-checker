@@ -20,11 +20,43 @@ pz-mod-checker diagnose
 
 # Find which mod is crashing PZ
 pz-mod-checker bisect start
+
+# Launch the web GUI
+pz-mod-checker --gui
 ```
 
 ---
 
-## Commands
+## Web GUI
+
+Launch a local dashboard in your browser:
+
+```bash
+pz-mod-checker --gui
+```
+
+Opens `http://localhost:8642` with a full dashboard featuring:
+
+- **Scan** — Run scans, browse results by mod, filter by severity
+- **Diagnose** — One-click crash log analysis, disable erroring mods
+- **Mods** — Toggle mods on/off, manage profiles, search/filter
+- **Bisect** — Visual binary search walkthrough with progress tracking
+
+All actions available in the GUI call the same API endpoints, which can also be used by other tools:
+
+```
+GET  /api/scan?version=42.15.3    # Scan results as JSON
+GET  /api/diagnose                 # Last session diagnosis
+GET  /api/mods                     # Mod list with status
+POST /api/mods/enable              # Enable mods
+POST /api/mods/disable             # Disable mods
+POST /api/bisect/start             # Begin bisect
+GET  /api/profiles                 # List profiles
+```
+
+---
+
+## CLI Commands
 
 ### `scan` — Check mods for compatibility issues
 
@@ -133,6 +165,18 @@ pz-mod-checker bisect abort    # Give up, restore backup
 
 ---
 
+## Platform Support
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| **Windows** | Full support | Primary development platform. Auto-detects Steam and Zomboid paths. |
+| **Linux** | Full support | Detects `~/.steam/` and `~/Zomboid/` paths. |
+| **macOS** | Full support | Detects `~/Library/Application Support/Steam/` paths. |
+
+All features work cross-platform: scanning, diagnosing, mod management, bisect, and the web GUI. The tool uses `pathlib` throughout for platform-safe path handling. ANSI colors auto-disable when output is piped or on unsupported terminals.
+
+---
+
 ## File Locations
 
 The tool auto-detects these paths:
@@ -145,6 +189,7 @@ The tool auto-detects these paths:
 | User mods | `~/Zomboid/mods/` | Locally installed mods |
 | Workshop mods | `Steam/steamapps/workshop/content/108600/` | Steam Workshop mods |
 | Bisect state | `~/Zomboid/.pz-mod-checker/bisect_state.json` | Bisect progress |
+| Workshop cache | Platform cache dir | Cached Steam API responses (24h TTL) |
 
 ---
 
@@ -165,22 +210,54 @@ pz-mod-checker scan 42.15.3
 pip install pz-mod-checker
 ```
 
+### Standalone .exe (coming soon)
+
+Download from [GitHub Releases](https://github.com/rob-kingsbury/pz-mod-checker/releases) — no Python required. Double-click to launch the web GUI.
+
+---
+
+## JSON API
+
+When running the web GUI (`--gui`), all endpoints are available at `http://localhost:8642`:
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/scan?version=42.15.3` | Scan all mods against a version |
+| GET | `/api/diagnose` | Parse last session's crash log |
+| GET | `/api/mods` | List all mods with enabled/disabled status |
+| POST | `/api/mods/enable` | Enable mods `{"mod_ids": [...]}` |
+| POST | `/api/mods/disable` | Disable mods `{"mod_ids": [...]}` |
+| POST | `/api/mods/disable-breaking` | Disable mods that caused errors |
+| GET | `/api/profiles` | List saved profiles |
+| POST | `/api/profile/save` | Save current mod list `{"name": "..."}` |
+| POST | `/api/profile/load` | Load a profile `{"name": "..."}` |
+| GET | `/api/bisect/status` | Get bisect session state |
+| POST | `/api/bisect/start` | Start a new bisect |
+| POST | `/api/bisect/crash` | Report PZ crashed |
+| POST | `/api/bisect/ok` | Report PZ loaded OK |
+| POST | `/api/bisect/abort` | Abort bisect, restore backup |
+| GET | `/api/version` | Tool version |
+
+All endpoints return JSON. Any program that can make HTTP requests can use the API.
+
 ---
 
 ## Contributing Rules
 
-Rules are defined in YAML files under `data/rules/`. Each rule describes a breaking change introduced in a specific PZ version:
+Rules are defined in JSON files under `data/rules/`. Each rule describes a breaking change introduced in a specific PZ version:
 
-```yaml
-- id: b42-13-fear-removed
-  type: api_removal
-  severity: breaking
-  since: "42.13.0"
-  description: "Legacy Fear stat removed"
-  pattern: "getFear\\b|setFear\\b"
-  regex: true
-  scan: "*.lua"
-  context: "Fear stat removed entirely in 42.13"
+```json
+{
+  "id": "b42-13-fear-removed",
+  "type": "api_removal",
+  "severity": "breaking",
+  "since": "42.13.0",
+  "description": "Legacy Fear stat removed",
+  "pattern": "getFear\\b|setFear\\b",
+  "regex": true,
+  "scan": "*.lua",
+  "context": "Fear stat removed entirely in 42.13"
+}
 ```
 
 To add a rule: edit the appropriate version file, test with `pz-mod-checker scan <version>`, and submit a PR.
@@ -194,14 +271,17 @@ pz_mod_checker/
     cli.py          # CLI entry point with subcommands
     paths.py        # Shared path utilities
     scanner/        # Mod discovery, file traversal, mod.info parsing
-    rules/          # Rule engine, loader, version comparison
+    rules/          # Rule engine, JSON loader, version comparison
     reporter/       # Output formatting (CLI, JSON)
     diagnose.py     # Log parser for console.txt
     manager.py      # Mod enable/disable, profiles
     workshop.py     # Steam Workshop API queries
     bisect.py       # Binary search for crashing mod
+    gui/            # Localhost web dashboard
+        server.py   # HTTP server + JSON API
+        static/     # HTML + Tailwind CSS frontend
 data/
-    rules/          # Version-keyed rule definitions (YAML)
+    rules/          # Version-keyed rule definitions (JSON)
     no-comp.txt     # Known incompatible mod IDs
 ```
 

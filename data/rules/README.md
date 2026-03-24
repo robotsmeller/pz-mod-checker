@@ -1,10 +1,10 @@
 # Rule Files
 
-Each YAML file defines breaking changes introduced in a specific PZ version.
+Each JSON file defines breaking changes introduced in a specific PZ version.
 
 ## Adding Rules
 
-1. Create `<version>.yaml` (e.g., `42.5.0.yaml`)
+1. Create `<version>.json` (e.g., `42.5.0.json`)
 2. Follow the schema in `.claude/specs/rule-schema.md`
 3. Test with `python -m src 42.5.0 --mod path/to/test-mod -v`
 

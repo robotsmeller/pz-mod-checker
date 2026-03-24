@@ -20,28 +20,30 @@ def _create_rule_file(tmp: Path, filename: str, content: str) -> Path:
 def test_load_rules():
     with tempfile.TemporaryDirectory() as tmp:
         tmp_path = Path(tmp)
-        rules_dir = _create_rule_file(tmp_path, "42.0.0.yaml", """
-version: "42.0.0"
-summary: "Test rules"
-
-changes:
-
-  - id: test-structure
-    type: structure
-    severity: warning
-    since: "42.0.0"
-    description: "Test structure rule"
-    check: dir_exists
-    path: "common/"
-
-  - id: test-api
-    type: api_removal
-    severity: breaking
-    since: "42.0.0"
-    description: "Test API removal"
-    pattern: "OldFunction"
-    scan: "*.lua"
-""")
+        rules_dir = _create_rule_file(tmp_path, "42.0.0.json", """{
+  "version": "42.0.0",
+  "summary": "Test rules",
+  "changes": [
+    {
+      "id": "test-structure",
+      "type": "structure",
+      "severity": "warning",
+      "since": "42.0.0",
+      "description": "Test structure rule",
+      "check": "dir_exists",
+      "path": "common/"
+    },
+    {
+      "id": "test-api",
+      "type": "api_removal",
+      "severity": "breaking",
+      "since": "42.0.0",
+      "description": "Test API removal",
+      "pattern": "OldFunction",
+      "scan": "*.lua"
+    }
+  ]
+}""")
 
         rules = load_rules_from_dir(rules_dir)
         assert len(rules) == 2

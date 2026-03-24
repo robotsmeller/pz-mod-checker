@@ -60,7 +60,7 @@ Two-layer system:
 | `src/scanner/` | Mod discovery, file traversal, mod.info parsing |
 | `src/rules/` | Rule engine, rule loader, version comparison |
 | `src/reporter/` | Output formatting (CLI table, JSON, HTML) |
-| `data/rules/` | YAML rule definitions by version |
+| `data/rules/` | JSON rule definitions by version |
 | `data/no-comp.txt` | Known incompatible mod IDs |
 | `tests/` | Pytest test suite |
 
@@ -68,7 +68,7 @@ Two-layer system:
 
 1. **Python 3.10+** — Use match/case, type hints, pathlib
 2. **No external deps for core** — stdlib only for scanner/rules. Optional deps for fancy output.
-3. **Rules are YAML** — Human-editable, version-controlled
+3. **Rules are JSON** — Human-editable, version-controlled
 4. **Test everything** — pytest, each rule type needs test coverage
 5. **CLI first** — argparse, clean exit codes, machine-readable output option
 
