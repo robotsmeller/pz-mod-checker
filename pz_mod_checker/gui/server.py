@@ -135,7 +135,6 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         from .. import __version__
         from ..diagnose import get_console_log, parse_console_log
         from ..manager import read_mod_list
-        from ..scanner.discovery import discover_mods
 
         pz_version = "unknown"
         session_date = ""
@@ -155,18 +154,11 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-        total_mods = 0
-        try:
-            total_mods = len(discover_mods())
-        except Exception:
-            pass
-
         self._send_json({
             "tool_version": __version__,
             "pz_version": pz_version,
             "last_session": session_date,
             "active_mods": active_mods,
-            "total_mods": total_mods,
         })
 
     def _handle_versions(self) -> None:

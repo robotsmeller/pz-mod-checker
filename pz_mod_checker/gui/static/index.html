@@ -65,7 +65,7 @@
     </div>
     <div class="flex items-center gap-4 text-xs text-slate-400">
       <span>PZ <strong id="pz-version" class="text-slate-200">detecting...</strong></span>
-      <span><strong id="active-mod-count" class="text-pz-green">...</strong> / <span id="total-mod-count">...</span> mods active</span>
+      <span><strong id="active-mod-count" class="text-pz-green">...</strong> mods active</span>
       <span id="last-session" class="text-slate-500"></span>
     </div>
   </header>
@@ -852,57 +852,61 @@ async function refreshHeader() {
   try {
     const data = await api('GET', '/api/version');
     $('active-mod-count').textContent = data.active_mods ?? '?';
-    $('total-mod-count').textContent = data.total_mods ?? '?';
   } catch (e) { /* ignore */ }
 }
 
 /* ======================================================================
    Init
    ====================================================================== */
-(async function init() {
-  try {
-    // Load version info and available versions in parallel
-    const [vData, versionsData] = await Promise.all([
-      api('GET', '/api/version'),
-      api('GET', '/api/versions'),
-    ]);
-
-    $('app-version').textContent = 'v' + (vData.tool_version || '?');
-    $('pz-version').textContent = vData.pz_version || 'not detected';
-    $('active-mod-count').textContent = vData.active_mods ?? '?';
-    $('total-mod-count').textContent = vData.total_mods ?? '?';
-    if (vData.last_session) {
-      $('last-session').textContent = 'Last session: ' + vData.last_session;
+(function init() {
+  // Fetch version info (may be slow — reads console.txt + mod list)
+  api('GET', '/api/version').then(data => {
+    $('app-version').textContent = 'v' + (data.tool_version || '?');
+    $('pz-version').textContent = data.pz_version || 'not detected';
+    $('active-mod-count').textContent = data.active_mods ?? '?';
+    if (data.last_session) {
+      $('last-session').textContent = 'Last session: ' + data.last_session;
     }
-
     // Update empty state with mod count
     const emptyState = $('scan-empty-state');
-    if (emptyState && vData.total_mods > 0) {
-      emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${vData.total_mods} mods for B42 compatibility issues.`;
+    if (emptyState && data.active_mods > 0) {
+      emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${data.active_mods} active mods for B42 compatibility issues.`;
     }
+    // Pre-select detected PZ version in dropdown if already populated
+    if (data.pz_version && data.pz_version !== 'unknown') {
+      preselectVersion(data.pz_version);
+    }
+  }).catch(() => {});
 
-    // Populate version dropdown
+  // Fetch available rule versions (fast — just reads filenames)
+  api('GET', '/api/versions').then(data => {
     const sel = $('scan-version');
-    const versions = versionsData.versions || [];
-    if (versions.length > 0) {
-      sel.innerHTML = '';
-      // Add versions in reverse order (newest first)
-      for (const v of [...versions].reverse()) {
-        const opt = document.createElement('option');
-        opt.value = v;
-        opt.textContent = v;
-        sel.appendChild(opt);
-      }
-      // Pre-select detected PZ version, or default to latest
-      if (vData.pz_version && vData.pz_version !== 'unknown') {
-        // Find closest match
-        const detected = vData.pz_version;
-        const match = versions.find(v => detected.startsWith(v));
-        if (match) sel.value = match;
-      }
+    const versions = data.versions || [];
+    if (versions.length === 0) return;
+    sel.innerHTML = '';
+    for (const v of [...versions].reverse()) {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = v;
+      sel.appendChild(opt);
     }
-  } catch (e) { /* ignore */ }
+    // Try to pre-select if we already have detected version
+    const detected = $('pz-version').textContent;
+    if (detected && detected !== 'detecting...' && detected !== 'not detected') {
+      preselectVersion(detected);
+    }
+  }).catch(() => {});
 })();
+
+function preselectVersion(detected) {
+  const sel = $('scan-version');
+  const options = Array.from(sel.options).map(o => o.value);
+  // Exact match first, then prefix match (42.15.3 -> 42.15.0)
+  const exact = options.find(v => v === detected);
+  if (exact) { sel.value = exact; return; }
+  const prefix = options.find(v => detected.startsWith(v.replace(/\.\d+$/, '')));
+  if (prefix) sel.value = prefix;
+}
 </script>
 </body>
 </html>
