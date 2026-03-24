@@ -435,6 +435,124 @@ def _offer_auto_disable(diagnosis, name_to_id: dict[str, str], zomboid_dir: Path
 
 
 # ---------------------------------------------------------------------------
+# Subcommand: bisect
+# ---------------------------------------------------------------------------
+
+def _add_bisect_parser(subparsers: argparse._SubParsersAction) -> None:
+    p = subparsers.add_parser("bisect",
+        help="Binary search for the mod crashing PZ.")
+    p.add_argument("action", choices=["start", "crash", "ok", "status", "abort"],
+                    help="start: begin bisect | crash: PZ crashed | ok: PZ loaded fine | status: show progress | abort: restore backup")
+    p.add_argument("--zomboid-dir", type=Path, default=None,
+                    help="Zomboid user directory (auto-detected if omitted).")
+    p.add_argument("--mod-dir", type=Path, action="append", default=None,
+                    help="Mod directories for dependency resolution (repeatable).")
+    p.add_argument("--auto-diagnose", action="store_true",
+                    help="On crash, parse console.txt to try to identify culprit directly.")
+    p.add_argument("--no-color", action="store_true", help="Disable colored output.")
+    p.set_defaults(func=_cmd_bisect)
+
+
+def _cmd_bisect(args: argparse.Namespace) -> int:
+    from .bisect import (
+        bisect_abort,
+        bisect_report_crash,
+        bisect_report_ok,
+        bisect_start,
+        bisect_status,
+    )
+
+    use_color = not args.no_color
+    if use_color and not sys.stdout.isatty():
+        use_color = False
+
+    C_RED = "\033[91m" if use_color else ""
+    C_GRN = "\033[92m" if use_color else ""
+    C_YEL = "\033[93m" if use_color else ""
+    C_BLD = "\033[1m" if use_color else ""
+    C_DIM = "\033[2m" if use_color else ""
+    C_RST = "\033[0m" if use_color else ""
+
+    try:
+        match args.action:
+            case "start":
+                state = bisect_start(args.zomboid_dir, args.mod_dir)
+                print(f"\n{C_BLD}Bisect started{C_RST}")
+                print(f"  {len(state.original_mods)} mods total, ~{state.max_rounds} rounds needed")
+                print(f"  Backup saved as profile '{state.backup_profile}'")
+                print(f"\n  {C_YEL}Round {state.round_number}/{state.max_rounds}:{C_RST} Testing {len(state.current_enabled)} mods")
+                print(f"  {C_DIM}Launch PZ now. Then run:{C_RST}")
+                print(f"    {C_BLD}pz-mod-checker bisect crash{C_RST}  — if PZ crashed/hung")
+                print(f"    {C_BLD}pz-mod-checker bisect ok{C_RST}     — if PZ loaded fine")
+                print()
+                return 0
+
+            case "crash":
+                state = bisect_report_crash(args.zomboid_dir, args.mod_dir, args.auto_diagnose)
+                return _print_bisect_result(state, C_RED, C_GRN, C_YEL, C_BLD, C_DIM, C_RST)
+
+            case "ok":
+                state = bisect_report_ok(args.zomboid_dir, args.mod_dir)
+                return _print_bisect_result(state, C_RED, C_GRN, C_YEL, C_BLD, C_DIM, C_RST)
+
+            case "status":
+                state = bisect_status(args.zomboid_dir)
+                if state is None:
+                    print("No active bisect session.")
+                    return 0
+                print(f"\n{C_BLD}Bisect Status{C_RST}")
+                print(f"  Status: {state.status}")
+                print(f"  Round: {state.round_number}/{state.max_rounds}")
+                print(f"  Suspects remaining: {len(state.suspects)}")
+                print(f"  Known good: {len(state.known_good)}")
+                print(f"  Known bad: {state.known_bad or 'none yet'}")
+                print(f"  Currently testing: {len(state.current_enabled)} mods")
+                print()
+                return 0
+
+            case "abort":
+                bisect_abort(args.zomboid_dir)
+                print(f"{C_GRN}Bisect aborted. Original mod list restored.{C_RST}")
+                return 0
+
+    except RuntimeError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        return 1
+
+    return 0
+
+
+def _print_bisect_result(state, C_RED, C_GRN, C_YEL, C_BLD, C_DIM, C_RST) -> int:
+    """Print bisect state after a crash/ok report."""
+    if state.status == "complete":
+        culprit = state.known_bad[-1] if state.known_bad else "unknown"
+        print(f"\n  {C_RED}{C_BLD}Found culprit: {culprit}{C_RST}")
+        print(f"  All other mods restored. {culprit} disabled.")
+        if len(state.known_bad) > 1:
+            print(f"  Previously found: {', '.join(state.known_bad[:-1])}")
+        print(f"\n  {C_DIM}To undo: pz-mod-checker bisect abort{C_RST}")
+        print()
+        return 0
+
+    if state.status == "inconclusive":
+        print(f"\n  {C_YEL}Bisect inconclusive.{C_RST}")
+        print(f"  The crash may be caused by mod interactions, not a single mod.")
+        print(f"  Try 'pz-mod-checker diagnose' to check the crash log.")
+        print(f"  Original mod list restored.")
+        print()
+        return 0
+
+    # Still in progress
+    print(f"\n  {C_YEL}Round {state.round_number}/{state.max_rounds}:{C_RST} {len(state.suspects)} suspects remaining")
+    print(f"  Testing {len(state.current_enabled)} mods")
+    print(f"  {C_DIM}Launch PZ now. Then run:{C_RST}")
+    print(f"    {C_BLD}pz-mod-checker bisect crash{C_RST}  — if PZ crashed/hung")
+    print(f"    {C_BLD}pz-mod-checker bisect ok{C_RST}     — if PZ loaded fine")
+    print()
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -449,6 +567,7 @@ def build_parser() -> argparse.ArgumentParser:
     _add_scan_parser(subparsers)
     _add_diagnose_parser(subparsers)
     _add_manage_parser(subparsers)
+    _add_bisect_parser(subparsers)
 
     return parser
 
