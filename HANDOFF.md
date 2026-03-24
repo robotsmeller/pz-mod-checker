@@ -108,8 +108,9 @@ Pattern-based rules (API removals, renames) are accurate: ISInventoryPane hits 3
 - This is logic refinement, no web research needed
 
 ### Phase 2: Research New Rules
-- Primary source: https://steamdb.info/app/108600/patchnotes/ (complete B42 changelogs)
-- Secondary: PZwiki version history, FWolfe modding guide, awesome-b42-resources
+- **Steam News API** (programmatic): `GET https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=108600&maxlength=0&count=100` -- public, no key needed, returns PZ patch notes
+- **SteamDB** (manual reference only, DO NOT SCRAPE): https://steamdb.info/app/108600/patchnotes/
+- **Secondary**: PZwiki version history, FWolfe modding guide, awesome-b42-resources
 - Use extended thinking to synthesize changelog entries into rule candidates
 - Cross-reference against existing 51 rules to find gaps
 
