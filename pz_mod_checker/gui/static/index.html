@@ -239,7 +239,7 @@
             <option value="za">Z &rarr; A</option>
             <option value="enabled">Enabled first</option>
             <option value="disabled">Disabled first</option>
-            <option value="updates">Updates available first</option>
+            <option value="updates">Workshop issues first</option>
           </select>
           <button onclick="bulkMods('enable')"
                   class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
@@ -1238,9 +1238,16 @@ function filterMods() {
     case 'enabled': list.sort((a, b) => (b.enabled ? 1 : 0) - (a.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
     case 'disabled': list.sort((a, b) => (a.enabled ? 1 : 0) - (b.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
     case 'updates': list.sort((a, b) => {
-      const aUp = workshopData[a.mod_id]?.has_update ? 1 : 0;
-      const bUp = workshopData[b.mod_id]?.has_update ? 1 : 0;
-      return bUp - aUp || name(a).localeCompare(name(b));
+      const wsRank = (id) => {
+        const ws = workshopData[id];
+        if (!ws) return 4;
+        if (ws.has_update) return 0;
+        if (ws.reason === 'not_updated_since_b42') return 1;
+        if (ws.reason === 'updated_post_b42') return 2;
+        if (ws.reason === 'claims_b42_support') return 3;
+        return 4;
+      };
+      return wsRank(a.mod_id) - wsRank(b.mod_id) || name(a).localeCompare(name(b));
     }); break;
   }
 
