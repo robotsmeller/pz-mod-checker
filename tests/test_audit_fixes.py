@@ -73,7 +73,7 @@ def test_main_json_output_with_temp_mod_dir():
         old_stdout = sys.stdout
         sys.stdout = io.StringIO()
         try:
-            rc = main(["42.0.0", "--mod-dir", str(tmp_path), "--data-dir", str(data_dir), "--format", "json"])
+            rc = main(["scan", "42.0.0", "--mod-dir", str(tmp_path), "--data-dir", str(data_dir), "--format", "json"])
         finally:
             output = sys.stdout.getvalue()
             sys.stdout = old_stdout
@@ -98,7 +98,7 @@ def test_main_severity_filtering():
         sys.stdout = io.StringIO()
         try:
             rc = main([
-                "42.0.0", "--mod-dir", str(tmp_path),
+                "scan", "42.0.0", "--mod-dir", str(tmp_path),
                 "--data-dir", str(data_dir),
                 "--format", "json", "--severity", "breaking",
             ])
@@ -120,7 +120,7 @@ def test_main_returns_0_when_no_mods_found():
         old_stderr = sys.stderr
         sys.stderr = io.StringIO()
         try:
-            rc = main(["42.0.0", "--mod-dir", tmp, "--data-dir", str(data_dir), "--format", "json"])
+            rc = main(["scan", "42.0.0", "--mod-dir", tmp, "--data-dir", str(data_dir), "--format", "json"])
         finally:
             sys.stderr = old_stderr
         assert rc == 0
