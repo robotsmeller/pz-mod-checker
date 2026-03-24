@@ -28,7 +28,7 @@ _mod_cache: dict = {"mtime": 0.0, "mods": []}
 
 def _cached_discover_mods() -> list:
     """Return discovered mods, cached with mtime-based invalidation."""
-    from .scanner.discovery import discover_mods, get_default_mod_paths
+    from ..scanner.discovery import discover_mods, get_default_mod_paths
 
     # Check newest mtime across all mod directories
     newest = 0.0

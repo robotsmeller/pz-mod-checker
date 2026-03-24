@@ -336,16 +336,17 @@ let workshopData = {}; // mod_id -> {reason, detail, has_update, last_updated, .
 function setScope(scope) {
   currentScope = scope;
   localStorage.setItem('pzmc-scope', scope);
-  // Enable/disable profile dropdown
   const sel = $('scope-profile');
   sel.disabled = scope !== 'profile';
-  // Update radio buttons
   document.querySelectorAll('input[name="scope"]').forEach(r => r.checked = r.value === scope);
   if (scope === 'profile' && !currentProfileName && profilesCache.length > 0) {
     currentProfileName = profilesCache[0].name;
     sel.value = currentProfileName;
     localStorage.setItem('pzmc-scope-profile', currentProfileName);
   }
+  // Re-render active tab content with new scope
+  if (allMods.length > 0) filterMods();
+  if (lastScanData) renderScanResults(lastScanData);
 }
 
 function onScopeProfileChange() {
@@ -495,6 +496,12 @@ document.addEventListener('click', async (e) => {
     btn.disabled = true;
     await toggleMod(modId, btn.dataset.enable === 'true');
     btn.disabled = false;
+  } else if (action === 'disable-scan-breaking') {
+    btn.disabled = true;
+    await disableScanBreaking();
+    btn.disabled = false;
+  } else if (action === 'export-all') {
+    exportAllFindings(btn.dataset.format || 'text');
   }
 });
 
@@ -586,13 +593,13 @@ function renderScanResults(data) {
                value="${esc(scanModFilter)}" oninput="scanModFilter=this.value; scanPage=1; renderScanResults(lastScanData)"
                class="bg-surface-3 border border-surface-4 rounded px-3 py-1.5 text-xs text-slate-100 w-56 focus:outline-none focus:border-pz-green">
         ${breakingModIds.length > 0 ? `
-          <button onclick="disableScanBreaking()"
+          <button data-action="disable-scan-breaking"
                   class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
             Disable All ${breakingModIds.length} Breaking Mod${breakingModIds.length !== 1 ? 's' : ''}
           </button>` : ''}
-        <button onclick="exportAllFindings('text')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All TXT</button>
-        <button onclick="exportAllFindings('markdown')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All MD</button>
-        <button onclick="exportAllFindings('json')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All JSON</button>
+        <button data-action="export-all" data-format="text" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All TXT</button>
+        <button data-action="export-all" data-format="markdown" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All MD</button>
+        <button data-action="export-all" data-format="json" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All JSON</button>
       </div>
     </div>`;
 
@@ -1076,7 +1083,8 @@ async function refreshMods() {
 function renderMods(mods) {
   const el = $('mod-list');
   const enabled = mods.filter(m => m.enabled).length;
-  $('mod-count').textContent = `${mods.length} mods total, ${enabled} enabled`;
+  const scopeLabel = currentScope === 'active' ? 'active' : currentScope === 'all' ? 'installed' : `in profile`;
+  $('mod-count').textContent = `${mods.length} ${scopeLabel} mods shown, ${enabled} enabled`;
 
   if (mods.length === 0) {
     el.innerHTML = '<div class="text-sm text-slate-500 py-4">No mods found.</div>';

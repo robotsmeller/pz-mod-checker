@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__scroll-analyzer__execute_javascript",
+      "mcp__scroll-analyzer__capture_current_state"
+    ]
+  }
+}

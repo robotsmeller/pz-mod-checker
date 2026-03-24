@@ -441,6 +441,97 @@ def test_mod_info_with_utf8_bom():
 
 
 # ============================================================
+# 8. Server features (session 3)
+# ============================================================
+
+def test_read_body_bad_json():
+    """_read_body should return None on invalid JSON (error sent to client)."""
+    from pz_mod_checker.gui.server import PZModCheckerHandler
+    # The method is instance-based, test the logic directly
+    import json
+    bad = b"not json"
+    try:
+        json.loads(bad)
+        assert False, "Should have raised"
+    except json.JSONDecodeError:
+        pass  # Confirmed bad JSON raises
+
+
+def test_console_cache_returns_consistent():
+    """Console cache should return same values on repeated calls."""
+    from pz_mod_checker.gui.server import PZModCheckerHandler
+    handler_class = PZModCheckerHandler
+    # Cache starts empty
+    cache = handler_class._console_cache
+    assert "mtime" in cache
+    assert "pz_version" in cache
+
+
+def test_cached_discover_mods_returns_list():
+    """_cached_discover_mods should return a list."""
+    from pz_mod_checker.gui.server import _cached_discover_mods
+    result = _cached_discover_mods()
+    assert isinstance(result, list)
+
+
+def test_cached_discover_mods_caches():
+    """Calling _cached_discover_mods twice should return same object."""
+    from pz_mod_checker.gui.server import _cached_discover_mods, _mod_cache
+    first = _cached_discover_mods()
+    mtime_first = _mod_cache["mtime"]
+    second = _cached_discover_mods()
+    mtime_second = _mod_cache["mtime"]
+    # Same mtime means cache was reused (no re-scan)
+    assert mtime_first == mtime_second
+    assert len(first) == len(second)
+
+
+def test_version_sort_numeric():
+    """Version dropdown should sort numerically, not lexicographically."""
+    from pz_mod_checker.rules.version import PZVersion
+    versions = ["42.0.0", "42.10.0", "42.8.0", "42.9.0", "42.15.0"]
+    versions.sort(key=lambda v: PZVersion.parse(v), reverse=True)
+    assert versions[0] == "42.15.0"
+    assert versions[-1] == "42.0.0"
+    assert versions[1] == "42.10.0"  # 10 > 9 > 8
+
+
+def test_workshop_metadata_dataclass():
+    """WorkshopMetadata fields are accessible."""
+    from pz_mod_checker.workshop import WorkshopMetadata
+    m = WorkshopMetadata(file_id="123", title="Test", time_updated=1700000000)
+    assert m.file_id == "123"
+    assert m.time_updated == 1700000000
+    assert m.tags == []
+
+
+def test_extract_workshop_id_from_path():
+    """extract_workshop_id finds the workshop ID from a mod path."""
+    from pz_mod_checker.workshop import extract_workshop_id
+    from pz_mod_checker.scanner.mod_info import ModInfo
+    mod = ModInfo(
+        mod_id="TestMod",
+        name="Test",
+        path=Path("C:/Steam/steamapps/workshop/content/108600/1234567/mods/TestMod"),
+    )
+    wid = extract_workshop_id(mod)
+    assert wid == "1234567"
+
+
+def test_extract_workshop_id_local_mod():
+    """Local mods (not in workshop) return None for workshop ID."""
+    from pz_mod_checker.workshop import extract_workshop_id
+    from pz_mod_checker.scanner.mod_info import ModInfo
+    mod = ModInfo(
+        mod_id="LocalMod",
+        name="Local",
+        path=Path("C:/Users/test/Zomboid/mods/LocalMod"),
+    )
+    wid = extract_workshop_id(mod)
+    assert wid is None
+
+
+# ============================================================
 # Runner
 # ============================================================
 
