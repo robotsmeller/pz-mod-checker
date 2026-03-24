@@ -1,0 +1,13 @@
+# PZ Mod Checker — Known Incompatible Mods
+# Format: mod_id|max_compatible_version|reason
+# Lines starting with # are comments
+#
+# Add entries here for mods that can't be detected by code analysis alone.
+# This supplements the rule engine for behavioral/runtime incompatibilities.
+#
+# To find a mod's ID: check its mod.info file for the id= field,
+# or check the Workshop page URL.
+#
+# Examples (uncomment and verify before using):
+# SuperbSurvivors|41.78.16|Uses removed NPC pathfinding internals, B41-only architecture
+# Arsenal26ForBuild41|41.78.16|Hardcoded B41 UI framework, author confirmed no B42 update
