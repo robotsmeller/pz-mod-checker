@@ -35,9 +35,24 @@
     .toggle-track.on .toggle-thumb { left: 20px; }
     details summary { cursor: pointer; list-style: none; }
     details summary::-webkit-details-marker { display: none; }
-    details summary::before { content: '\25B6'; display: inline-block; margin-right: 8px;
-                              transition: transform 0.2s; font-size: 0.7em; }
-    details[open] summary::before { transform: rotate(90deg); }
+    /* Mod headers: animated +/- */
+    details.card > summary { padding-left: 42px; position: relative; }
+    details.card > summary::before, details.card > summary::after {
+      content: ''; position: absolute; left: 16px; top: 50%;
+      background: #4ade80; border-radius: 1px; transition: all 0.25s ease;
+    }
+    /* horizontal bar (always visible) */
+    details.card > summary::before { width: 14px; height: 2px; transform: translateY(-50%); }
+    /* vertical bar (collapses on open) */
+    details.card > summary::after { width: 2px; height: 14px; left: 22px; transform: translateY(-50%) scaleY(1); }
+    details.card[open] > summary::after { transform: translateY(-50%) scaleY(0); }
+    details.card[open] > summary::before { background: #93c5fd; }
+    details.card > summary:hover::before, details.card > summary:hover::after { background: #86efac; }
+    details.card[open] > summary:hover::before { background: #bfdbfe; }
+    /* Subgroups: caret */
+    details:not(.card) summary::before { content: '\25B6'; display: inline-block; margin-right: 8px;
+                                         transition: transform 0.2s; font-size: 0.7em; }
+    details:not(.card)[open] summary::before { transform: rotate(90deg); }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; }
     /* Toast */
     #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
@@ -50,6 +65,11 @@
     /* Severity filter pills */
     .sev-pill { cursor: pointer; opacity: 0.4; transition: opacity 0.2s; }
     .sev-pill.active { opacity: 1; }
+    /* Dev mode: hide dev-only elements by default */
+    .dev-only, .dev-only-block, .dev-only-inline { display: none !important; }
+    body.dev-mode .dev-only { display: flex !important; }
+    body.dev-mode .dev-only-block { display: block !important; }
+    body.dev-mode .dev-only-inline { display: inline !important; }
   </style>
 </head>
 <body class="bg-surface-1 text-slate-200 min-h-screen">
@@ -92,8 +112,16 @@
               <option value="42.15.3">42.15.3</option>
             </select>
           </div>
+          <div>
+            <label class="block text-xs text-slate-400 mb-1">Scope</label>
+            <select id="scan-scope"
+                    class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 w-44 focus:outline-none focus:border-pz-green">
+              <option value="1">Active mods only</option>
+              <option value="0">All installed mods</option>
+            </select>
+          </div>
           <button id="btn-scan" onclick="runScan()"
-                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
+                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors self-end">
             Scan Mods
           </button>
         </div>
@@ -102,6 +130,11 @@
         <div class="card p-8 text-center text-slate-500">
           <svg class="w-10 h-10 mx-auto mb-3 opacity-30 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
           <div class="text-sm" id="scan-empty-state">Press <strong class="text-pz-green">Scan Mods</strong> to check your mods for B42 compatibility issues.</div>
+          <div class="flex justify-center gap-4 mt-4 text-xs">
+            <span><span class="severity-breaking px-1.5 py-0.5 rounded">breaking</span> will crash or fail to load</span>
+            <span><span class="severity-warning px-1.5 py-0.5 rounded">warning</span> may malfunction, needs checking</span>
+            <span><span class="severity-info px-1.5 py-0.5 rounded">info</span> cosmetic or minor, likely still works</span>
+          </div>
         </div>
       </div>
     </section>
@@ -133,6 +166,13 @@
           <input id="mod-search" type="text" placeholder="Search mods..."
                  class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-pz-green"
                  oninput="filterMods()">
+          <select id="mod-sort" onchange="filterMods()"
+                  class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-pz-green">
+            <option value="az">A &rarr; Z</option>
+            <option value="za">Z &rarr; A</option>
+            <option value="enabled">Enabled first</option>
+            <option value="disabled">Disabled first</option>
+          </select>
           <button onclick="bulkMods('enable')"
                   class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
           <button onclick="bulkMods('disable')"
@@ -202,13 +242,50 @@
 
   </main>
 
+  <!-- Footer -->
+  <footer class="border-t border-surface-3 mt-8 py-4 px-6">
+    <div class="max-w-5xl mx-auto flex items-center justify-between text-xs text-slate-500">
+      <div class="flex items-center gap-4">
+        <span>PZ Mod Checker by <a href="https://steamcommunity.com/id/robotsmeller" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">@robotsmeller</a></span>
+        <a href="https://github.com/rob-kingsbury/pz-mod-checker" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">GitHub</a>
+        <a href="https://github.com/rob-kingsbury/pz-mod-checker#readme" target="_blank" class="text-slate-400 hover:text-pz-green transition-colors">User Guide</a>
+      </div>
+      <label class="flex items-center gap-2 cursor-pointer select-none">
+        <span class="text-slate-500">Dev Mode</span>
+        <div id="dev-mode-toggle" class="toggle-track" onclick="toggleDevMode()">
+          <div class="toggle-thumb"></div>
+        </div>
+      </label>
+    </div>
+  </footer>
+
 <script>
 /* ======================================================================
    State
    ====================================================================== */
 let allMods = [];
-let lastScanData = null; // cache for "Disable All Breaking" on scan tab
+let lastScanData = null;
 let activeSevFilters = new Set(['breaking', 'warning', 'info']);
+let devMode = localStorage.getItem('pzmc-dev-mode') === '1';
+
+// Apply dev mode on load
+if (devMode) {
+  document.body.classList.add('dev-mode');
+  requestAnimationFrame(() => {
+    const t = document.getElementById('dev-mode-toggle');
+    if (t) t.classList.add('on');
+  });
+}
+
+function toggleDevMode() {
+  devMode = !devMode;
+  localStorage.setItem('pzmc-dev-mode', devMode ? '1' : '0');
+  document.body.classList.toggle('dev-mode', devMode);
+  document.getElementById('dev-mode-toggle').classList.toggle('on', devMode);
+  toast(devMode ? 'Dev mode enabled' : 'Dev mode disabled', 'info');
+  // Re-render scan results if present to show/hide dev features
+  if (lastScanData) renderScanResults(lastScanData);
+}
 
 /* ======================================================================
    Helpers
@@ -290,7 +367,8 @@ async function runScan() {
 
   try {
     const ver = $('scan-version').value.trim() || '42.15.3';
-    const data = await api('GET', `/api/scan?version=${encodeURIComponent(ver)}`);
+    const activeOnly = $('scan-scope').value;
+    const data = await api('GET', `/api/scan?version=${encodeURIComponent(ver)}&active_only=${activeOnly}`);
     lastScanData = data;
 
     if (data.total_mods === 0) {
@@ -307,16 +385,20 @@ async function runScan() {
   }
 }
 
+let scanPage = 1;
+const SCAN_PAGE_SIZE = 25;
+let scanModFilter = '';
+
 function renderScanResults(data) {
   const el = $('scan-results');
   const s = data.summary || {};
   const breakingModIds = [];
 
-  // Collect mod IDs with breaking findings
   for (const [modId, findings] of Object.entries(data.mods || {})) {
     if (findings.some(f => f.severity === 'breaking')) breakingModIds.push(modId);
   }
 
+  // Toolbar: summary + filters + search
   let html = `
     <div class="card p-5 mb-4">
       <div class="flex items-center justify-between flex-wrap gap-4">
@@ -327,78 +409,164 @@ function renderScanResults(data) {
         <div class="flex gap-2 items-center">
           <span class="text-xs text-slate-500 mr-1">Filter:</span>
           <span class="sev-pill severity-breaking px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('breaking') ? 'active' : ''}"
-                onclick="toggleSevFilter('breaking')">${s.breaking || 0} breaking</span>
+                onclick="toggleSevFilter('breaking')" title="Will crash or fail to load">${s.breaking || 0} breaking</span>
           <span class="sev-pill severity-warning px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('warning') ? 'active' : ''}"
-                onclick="toggleSevFilter('warning')">${s.warning || 0} warning</span>
+                onclick="toggleSevFilter('warning')" title="May malfunction, needs checking">${s.warning || 0} warning</span>
           <span class="sev-pill severity-info px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('info') ? 'active' : ''}"
-                onclick="toggleSevFilter('info')">${s.info || 0} info</span>
+                onclick="toggleSevFilter('info')" title="Cosmetic or minor, likely still works">${s.info || 0} info</span>
         </div>
       </div>
-      ${breakingModIds.length > 0 ? `
-        <div class="mt-3 pt-3 border-t border-surface-3">
+      <div class="flex items-center gap-3 mt-3 pt-3 border-t border-surface-3 flex-wrap">
+        <input id="scan-mod-filter" type="text" placeholder="Search mods by name or ID..."
+               value="${esc(scanModFilter)}" oninput="scanModFilter=this.value; scanPage=1; renderScanResults(lastScanData)"
+               class="bg-surface-3 border border-surface-4 rounded px-3 py-1.5 text-xs text-slate-100 w-56 focus:outline-none focus:border-pz-green">
+        ${breakingModIds.length > 0 ? `
           <button onclick="disableScanBreaking()"
                   class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
             Disable All ${breakingModIds.length} Breaking Mod${breakingModIds.length !== 1 ? 's' : ''}
-          </button>
-        </div>
-      ` : ''}
+          </button>` : ''}
+        <button onclick="exportAllFindings('text')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All TXT</button>
+        <button onclick="exportAllFindings('markdown')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All MD</button>
+        <button onclick="exportAllFindings('json')" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All JSON</button>
+      </div>
     </div>`;
 
   if (data.total_findings === 0) {
     html += '<div class="card p-5 text-emerald-400 text-sm">All mods passed. No compatibility issues found.</div>';
-  } else {
-    // Sort mods: breaking first, then warning, then info
-    const mods = Object.entries(data.mods || {});
-    mods.sort((a, b) => {
-      const sevOrder = { breaking: 0, warning: 1, info: 2 };
-      const aMax = Math.min(...a[1].map(f => sevOrder[f.severity] ?? 3));
-      const bMax = Math.min(...b[1].map(f => sevOrder[f.severity] ?? 3));
-      return aMax - bMax;
-    });
-
-    for (const [modId, findings] of mods) {
-      // Filter findings by active severity filters
-      const visible = findings.filter(f => activeSevFilters.has(f.severity));
-      if (visible.length === 0) continue;
-
-      const modName = findings[0]?.mod_name || modId;
-      const bc = findings.filter(f => f.severity === 'breaking').length;
-      const wc = findings.filter(f => f.severity === 'warning').length;
-      const ic = findings.filter(f => f.severity === 'info').length;
-      const hasBreaking = bc > 0;
-      html += `
-        <details class="card mb-2">
-          <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
-            <div class="flex items-center gap-3">
-              <span class="font-medium text-slate-100">${esc(modName)}</span>
-              <span class="text-xs text-slate-500">${esc(modId)}</span>
-            </div>
-            <div class="flex gap-2 items-center">
-              ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc}</span>` : ''}
-              ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc}</span>` : ''}
-              ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic}</span>` : ''}
-              ${hasBreaking ? `<button onclick="event.stopPropagation(); disableMod('${esc(modId)}')"
-                class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
-            </div>
-          </summary>
-          <div class="px-4 pb-4 space-y-2">
-            ${visible.map(f => `
-              <div class="bg-surface-1 rounded p-3 text-sm">
-                <div class="flex items-start gap-2 mb-1">
-                  ${severityBadge(f.severity)}
-                  <span class="text-slate-200">${esc(f.message)}</span>
-                </div>
-                ${f.file_path ? `<div class="text-xs text-slate-500 ml-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
-                ${f.line_text ? `<div class="text-xs text-slate-500 ml-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
-                ${f.suggestion ? `<div class="text-xs text-pz-green ml-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
-                ${f.context ? `<div class="text-xs text-slate-500 ml-[52px] mt-1">${esc(f.context)}</div>` : ''}
-              </div>
-            `).join('')}
-          </div>
-        </details>`;
-    }
+    el.innerHTML = html;
+    return;
   }
+
+  // Sort mods: breaking first, then warning, then info
+  let mods = Object.entries(data.mods || {});
+  mods.sort((a, b) => {
+    const sevOrder = { breaking: 0, warning: 1, info: 2 };
+    const aMax = Math.min(...a[1].map(f => sevOrder[f.severity] ?? 3));
+    const bMax = Math.min(...b[1].map(f => sevOrder[f.severity] ?? 3));
+    return aMax - bMax;
+  });
+
+  // Apply severity + text filters
+  mods = mods.filter(([modId, findings]) => {
+    if (!findings.some(f => activeSevFilters.has(f.severity))) return false;
+    if (scanModFilter) {
+      const q = scanModFilter.toLowerCase();
+      const name = (findings[0]?.mod_name || '').toLowerCase();
+      if (!name.includes(q) && !modId.toLowerCase().includes(q)) return false;
+    }
+    return true;
+  });
+
+  const totalFiltered = mods.length;
+  const totalPages = Math.max(1, Math.ceil(totalFiltered / SCAN_PAGE_SIZE));
+  if (scanPage > totalPages) scanPage = totalPages;
+  const start = (scanPage - 1) * SCAN_PAGE_SIZE;
+  const pageMods = mods.slice(start, start + SCAN_PAGE_SIZE);
+
+  for (const [modId, findings] of pageMods) {
+    const visible = findings.filter(f => activeSevFilters.has(f.severity));
+    if (visible.length === 0) continue;
+
+    const modName = findings[0]?.mod_name || modId;
+    const bc = findings.filter(f => f.severity === 'breaking').length;
+    const wc = findings.filter(f => f.severity === 'warning').length;
+    const ic = findings.filter(f => f.severity === 'info').length;
+    const hasBreaking = bc > 0;
+    html += `
+      <details class="card mb-2">
+        <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
+          <div class="flex items-center gap-3">
+            <span class="font-medium text-slate-100">${esc(modName)}</span>
+            <span class="text-xs text-slate-500">${esc(modId)}</span>
+          </div>
+          <div class="flex gap-2 items-center">
+            ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc}</span>` : ''}
+            ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc}</span>` : ''}
+            ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic}</span>` : ''}
+            ${hasBreaking ? `<button onclick="event.stopPropagation(); disableMod('${esc(modId)}')"
+              class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
+          </div>
+        </summary>
+        <div class="px-4 pb-4 space-y-2">
+          ${renderFindingGroups(visible)}
+          <div class="dev-only justify-end gap-2 pt-2 border-t border-surface-3 mt-2">
+            <button onclick="exportModFindings('${esc(modId)}', 'text')"
+              class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy TXT</button>
+            <button onclick="exportModFindings('${esc(modId)}', 'markdown')"
+              class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy MD</button>
+            <button onclick="exportModFindings('${esc(modId)}', 'json')"
+              class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors">Copy JSON</button>
+          </div>
+        </div>
+      </details>`;
+  }
+
+  // Pagination
+  if (totalPages > 1) {
+    html += `
+      <div class="flex items-center justify-between mt-4 text-sm">
+        <span class="text-slate-500">${totalFiltered} mods with issues (page ${scanPage}/${totalPages})</span>
+        <div class="flex gap-2">
+          <button onclick="scanPage=1; renderScanResults(lastScanData)" ${scanPage <= 1 ? 'disabled' : ''}
+            class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors disabled:opacity-30 disabled:cursor-default">First</button>
+          <button onclick="scanPage--; renderScanResults(lastScanData)" ${scanPage <= 1 ? 'disabled' : ''}
+            class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors disabled:opacity-30 disabled:cursor-default">Prev</button>
+          <button onclick="scanPage++; renderScanResults(lastScanData)" ${scanPage >= totalPages ? 'disabled' : ''}
+            class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors disabled:opacity-30 disabled:cursor-default">Next</button>
+          <button onclick="scanPage=${totalPages}; renderScanResults(lastScanData)" ${scanPage >= totalPages ? 'disabled' : ''}
+            class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1 rounded text-xs transition-colors disabled:opacity-30 disabled:cursor-default">Last</button>
+        </div>
+      </div>`;
+  }
+
   el.innerHTML = html;
+  // Restore focus to search if user was typing
+  if (scanModFilter) {
+    const input = $('scan-mod-filter');
+    if (input) { input.focus(); input.selectionStart = input.selectionEnd = input.value.length; }
+  }
+}
+
+function renderFinding(f) {
+  return `<div class="bg-surface-1 rounded p-3 text-sm">
+    <div class="flex items-start gap-2 mb-1">
+      ${severityBadge(f.severity)}
+      <span class="text-slate-200">${esc(f.message)}</span>
+      ${f.rule_id ? `<span class="dev-only-inline text-xs text-slate-600 font-mono ml-auto flex-shrink-0">${esc(f.rule_id)}</span>` : ''}
+    </div>
+    ${f.file_path ? `<div class="text-xs text-slate-500 ml-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
+    ${f.line_text ? `<div class="text-xs text-slate-500 ml-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
+    ${f.suggestion ? `<div class="text-xs text-pz-green ml-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
+    ${f.context ? `<div class="text-xs text-slate-500 ml-[52px] mt-1">${esc(f.context)}</div>` : ''}
+  </div>`;
+}
+
+function renderFindingGroups(findings) {
+  const sevOrder = ['breaking', 'warning', 'info'];
+  const groups = {};
+  for (const f of findings) {
+    (groups[f.severity] = groups[f.severity] || []).push(f);
+  }
+  const activeSevs = sevOrder.filter(s => groups[s]);
+
+  // If only one severity type, render flat — no subgroups needed
+  if (activeSevs.length <= 1) {
+    return findings.map(renderFinding).join('');
+  }
+
+  // Multiple severities: group with breaking shown, others collapsed
+  return activeSevs.map(sev => {
+    const items = groups[sev];
+    const label = sev === 'breaking' ? 'Breaking' : sev === 'warning' ? 'Warnings' : 'Info';
+    const open = sev === 'breaking' ? ' open' : '';
+    return `<details${open} class="border border-surface-3 rounded">
+      <summary class="px-3 py-2 text-xs font-medium text-slate-400 hover:bg-surface-3 rounded cursor-pointer flex items-center justify-between">
+        <span>${severityBadge(sev)} ${label}</span>
+        <span class="text-slate-500">${items.length}</span>
+      </summary>
+      <div class="px-2 pb-2 space-y-1">${items.map(renderFinding).join('')}</div>
+    </details>`;
+  }).join('');
 }
 
 function toggleSevFilter(sev) {
@@ -426,6 +594,118 @@ async function disableScanBreaking() {
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
   }
+}
+
+function exportModFindings(modId, format = 'text') {
+  if (!lastScanData || !lastScanData.mods) return;
+  const findings = lastScanData.mods[modId];
+  if (!findings || findings.length === 0) return;
+
+  const modName = findings[0]?.mod_name || modId;
+  const ver = $('scan-version').value;
+  const sevOrder = { breaking: 0, warning: 1, info: 2 };
+  const sorted = [...findings].sort((a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3));
+  const bc = findings.filter(f=>f.severity==='breaking').length;
+  const wc = findings.filter(f=>f.severity==='warning').length;
+  const ic = findings.filter(f=>f.severity==='info').length;
+
+  let output;
+
+  if (format === 'json') {
+    output = JSON.stringify({ mod_id: modId, mod_name: modName, pz_version: ver,
+      summary: { breaking: bc, warning: wc, info: ic, total: findings.length },
+      findings: sorted }, null, 2);
+  } else if (format === 'markdown') {
+    const lines = [
+      `## ${modName} (\`${modId}\`)`,
+      `> Scanned against PZ ${ver} | ${bc} breaking, ${wc} warning, ${ic} info`,
+      '',
+    ];
+    for (const f of sorted) {
+      const icon = f.severity === 'breaking' ? '~~' : f.severity === 'warning' ? '**' : '';
+      const end = icon;
+      lines.push(`- ${icon}[${f.severity.toUpperCase()}]${end} ${f.message}`);
+      if (f.file_path) lines.push(`  - \`${f.file_path}${f.line_number ? ':' + f.line_number : ''}\``);
+      if (f.line_text) lines.push(`  - Code: \`${f.line_text}\``);
+      if (f.suggestion) lines.push(`  - Fix: ${f.suggestion}`);
+      if (f.context) lines.push(`  - ${f.context}`);
+    }
+    output = lines.join('\n');
+  } else {
+    const lines = [
+      `PZ Mod Checker — ${modName} (${modId})`,
+      `Scanned against PZ ${ver}`,
+      `${findings.length} issue(s): ${bc} breaking, ${wc} warning, ${ic} info`,
+      '',
+    ];
+    for (const f of sorted) {
+      lines.push(`[${f.severity.toUpperCase()}] ${f.message}`);
+      if (f.file_path) lines.push(`  File: ${f.file_path}${f.line_number ? ':' + f.line_number : ''}`);
+      if (f.line_text) lines.push(`  Code: ${f.line_text}`);
+      if (f.suggestion) lines.push(`  Fix:  ${f.suggestion}`);
+      if (f.context) lines.push(`  Note: ${f.context}`);
+      lines.push('');
+    }
+    output = lines.join('\n');
+  }
+
+  navigator.clipboard.writeText(output).then(() => {
+    toast(`Copied ${format.toUpperCase()} report for ${modName} (${findings.length} findings)`, 'success');
+  }).catch(() => {
+    toast('Clipboard access denied', 'error');
+  });
+}
+
+function exportAllFindings(format = 'text') {
+  if (!lastScanData || !lastScanData.mods) return;
+  const ver = $('scan-version').value;
+  const allMods = Object.entries(lastScanData.mods);
+  if (allMods.length === 0) return;
+
+  if (format === 'json') {
+    const output = JSON.stringify({ pz_version: ver, summary: lastScanData.summary,
+      total_mods: lastScanData.total_mods, total_findings: lastScanData.total_findings,
+      mods: lastScanData.mods }, null, 2);
+    navigator.clipboard.writeText(output).then(() =>
+      toast(`Copied full JSON report (${lastScanData.total_findings} findings)`, 'success')
+    ).catch(() => toast('Clipboard access denied', 'error'));
+    return;
+  }
+
+  const sevOrder = { breaking: 0, warning: 1, info: 2 };
+  const isMd = format === 'markdown';
+  const lines = [];
+
+  if (isMd) {
+    lines.push(`# PZ Mod Checker Scan Report`, `> PZ ${ver} | ${lastScanData.total_findings} findings across ${lastScanData.total_mods_with_issues} mods`, '');
+  } else {
+    lines.push(`PZ Mod Checker Scan Report`, `PZ ${ver} | ${lastScanData.total_findings} findings across ${lastScanData.total_mods_with_issues} mods`, '');
+  }
+
+  for (const [modId, findings] of allMods) {
+    const sorted = [...findings].sort((a, b) => (sevOrder[a.severity]??3) - (sevOrder[b.severity]??3));
+    const name = findings[0]?.mod_name || modId;
+    if (isMd) {
+      lines.push(`## ${name} (\`${modId}\`)`, '');
+      for (const f of sorted) {
+        lines.push(`- **[${f.severity.toUpperCase()}]** ${f.message}`);
+        if (f.file_path) lines.push(`  - \`${f.file_path}${f.line_number ? ':'+f.line_number : ''}\``);
+        if (f.suggestion) lines.push(`  - Fix: ${f.suggestion}`);
+      }
+    } else {
+      lines.push(`=== ${name} (${modId}) ===`);
+      for (const f of sorted) {
+        lines.push(`  [${f.severity.toUpperCase()}] ${f.message}`);
+        if (f.file_path) lines.push(`    File: ${f.file_path}${f.line_number ? ':'+f.line_number : ''}`);
+        if (f.suggestion) lines.push(`    Fix:  ${f.suggestion}`);
+      }
+    }
+    lines.push('');
+  }
+
+  navigator.clipboard.writeText(lines.join('\n')).then(() =>
+    toast(`Copied full ${format.toUpperCase()} report (${lastScanData.total_findings} findings)`, 'success')
+  ).catch(() => toast('Clipboard access denied', 'error'));
 }
 
 async function disableMod(modId) {
@@ -618,11 +898,25 @@ function renderMods(mods) {
 
 function filterMods() {
   const q = $('mod-search').value.toLowerCase();
-  if (!q) { renderMods(allMods); return; }
-  const filtered = allMods.filter(m =>
-    m.mod_id.toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q)
-  );
-  renderMods(filtered);
+  const sort = $('mod-sort').value;
+
+  let list = allMods;
+  if (q) {
+    list = list.filter(m =>
+      m.mod_id.toLowerCase().includes(q) || (m.name || '').toLowerCase().includes(q)
+    );
+  }
+
+  list = [...list];
+  const name = m => (m.name || m.mod_id).toLowerCase();
+  switch (sort) {
+    case 'az': list.sort((a, b) => name(a).localeCompare(name(b))); break;
+    case 'za': list.sort((a, b) => name(b).localeCompare(name(a))); break;
+    case 'enabled': list.sort((a, b) => (b.enabled ? 1 : 0) - (a.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
+    case 'disabled': list.sort((a, b) => (a.enabled ? 1 : 0) - (b.enabled ? 1 : 0) || name(a).localeCompare(name(b))); break;
+  }
+
+  renderMods(list);
 }
 
 async function toggleMod(modId, enable) {
@@ -872,40 +1166,40 @@ async function refreshHeader() {
     if (emptyState && data.active_mods > 0) {
       emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${data.active_mods} active mods for B42 compatibility issues.`;
     }
-    // Pre-select detected PZ version in dropdown if already populated
-    if (data.pz_version && data.pz_version !== 'unknown') {
-      preselectVersion(data.pz_version);
+    // Re-populate dropdown with detected version if rule versions already loaded
+    if (ruleVersions.length > 0) {
+      populateVersionDropdown(ruleVersions, data.pz_version);
     }
   }).catch(() => {});
 
   // Fetch available rule versions (fast — just reads filenames)
   api('GET', '/api/versions').then(data => {
-    const sel = $('scan-version');
-    const versions = data.versions || [];
-    if (versions.length === 0) return;
-    sel.innerHTML = '';
-    for (const v of [...versions].reverse()) {
-      const opt = document.createElement('option');
-      opt.value = v;
-      opt.textContent = v;
-      sel.appendChild(opt);
-    }
-    // Try to pre-select if we already have detected version
-    const detected = $('pz-version').textContent;
-    if (detected && detected !== 'detecting...' && detected !== 'not detected') {
-      preselectVersion(detected);
-    }
+    populateVersionDropdown(data.versions || []);
   }).catch(() => {});
 })();
 
-function preselectVersion(detected) {
+let ruleVersions = [];
+
+function populateVersionDropdown(versions, detected) {
+  ruleVersions = versions;
   const sel = $('scan-version');
-  const options = Array.from(sel.options).map(o => o.value);
-  // Exact match first, then prefix match (42.15.3 -> 42.15.0)
-  const exact = options.find(v => v === detected);
-  if (exact) { sel.value = exact; return; }
-  const prefix = options.find(v => detected.startsWith(v.replace(/\.\d+$/, '')));
-  if (prefix) sel.value = prefix;
+  sel.innerHTML = '';
+
+  for (let i = 0; i < versions.length; i++) {
+    const v = versions[i];
+    const major = v.replace(/\.\d+$/, ''); // "42.15.0" -> "42.15"
+    const opt = document.createElement('option');
+    opt.value = v;
+    opt.textContent = i === 0 ? `${major}+ (latest)` : `${major}.x`;
+    sel.appendChild(opt);
+  }
+
+  // Pre-select the range that matches detected PZ version
+  if (detected && detected !== 'unknown') {
+    const detectedMajor = detected.replace(/\.\d+$/, ''); // "42.15.3" -> "42.15"
+    const match = versions.find(v => v.startsWith(detectedMajor));
+    if (match) sel.value = match;
+  }
 }
 </script>
 </body>

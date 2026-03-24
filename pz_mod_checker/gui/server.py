@@ -162,26 +162,40 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         })
 
     def _handle_versions(self) -> None:
-        """Return available PZ versions from rule files."""
+        """Return available PZ versions from rule files, newest first."""
+        from ..rules.version import PZVersion
+
         rules_dir = _get_data_dir() / "rules"
         versions = []
         if rules_dir.is_dir():
-            for f in sorted(rules_dir.glob("*.json")):
-                v = f.stem  # e.g. "42.15.0"
-                versions.append(v)
+            for f in rules_dir.glob("*.json"):
+                versions.append(f.stem)
+        versions.sort(key=lambda v: PZVersion.parse(v), reverse=True)
         self._send_json({"versions": versions})
 
     def _handle_scan(self, params: dict) -> None:
+        from ..manager import read_mod_list
         from ..rules.engine import check_all_mods
         from ..rules.loader import load_ruleset
         from ..rules.version import PZVersion
         from ..scanner.discovery import discover_mods
 
         version = params.get("version", ["42.15.3"])[0]
+        active_only = params.get("active_only", ["1"])[0] == "1"
         target = PZVersion.parse(version)
 
         ruleset = load_ruleset(_get_data_dir())
-        mods = discover_mods()
+        all_mods = discover_mods()
+
+        if active_only:
+            try:
+                mod_list = read_mod_list()
+                active_ids = set(mod_list.mods)
+                mods = [m for m in all_mods if m.mod_id in active_ids]
+            except Exception:
+                mods = all_mods
+        else:
+            mods = all_mods
 
         if not mods:
             self._send_json({"total_mods": 0, "total_findings": 0, "mods": {}})
