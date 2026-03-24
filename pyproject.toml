@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pz-mod-checker"
+version = "0.1.0"
+description = "External compatibility scanner for Project Zomboid mods"
+requires-python = ">=3.10"
+license = "MIT"
+
+[project.scripts]
+pz-mod-checker = "pz_mod_checker.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["pz_mod_checker*"]
+
+[tool.setuptools.package-data]
+pz_mod_checker = ["../data/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import sys
+
 from ..rules.engine import Finding
 
 
@@ -31,6 +33,10 @@ def print_scan_results(
     verbose: bool = False,
 ) -> None:
     """Print scan results as a formatted CLI table."""
+    # Auto-disable color when not a terminal
+    if use_color and not sys.stdout.isatty():
+        use_color = False
+
     if not results:
         msg = "No compatibility issues found."
         if use_color:

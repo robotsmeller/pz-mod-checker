@@ -75,7 +75,7 @@ def _parse_file(info_path: Path, mod_dir: Path) -> ModInfo:
     """Parse a single mod.info file into a ModInfo dataclass."""
     raw: dict[str, str] = {}
 
-    text = info_path.read_text(encoding="utf-8", errors="replace")
+    text = info_path.read_text(encoding="utf-8-sig", errors="replace")
     for line in text.splitlines():
         line = line.strip()
         if not line or line.startswith("#"):

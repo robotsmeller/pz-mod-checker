@@ -1,15 +1,12 @@
 """Tests for rule loading and engine."""
 
-import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.rules.loader import Rule, RuleSet, NoCompEntry, load_rules_from_dir, load_no_comp
-from src.rules.version import PZVersion
-from src.rules.engine import check_mod, Finding
-from src.scanner.mod_info import ModInfo
+from pz_mod_checker.rules.loader import Rule, RuleSet, NoCompEntry, load_rules_from_dir, load_no_comp
+from pz_mod_checker.rules.version import PZVersion
+from pz_mod_checker.rules.engine import check_mod, Finding
+from pz_mod_checker.scanner.mod_info import ModInfo
 
 
 def _create_rule_file(tmp: Path, filename: str, content: str) -> Path:

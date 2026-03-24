@@ -1,4 +1,4 @@
-"""Allow running as `python -m src`."""
+"""Allow running as `python -m pz_mod_checker`."""
 
 import sys
 

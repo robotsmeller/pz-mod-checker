@@ -87,3 +87,5 @@ def check_file_encoding(file_path: Path) -> str:
         return "utf-8"
     except UnicodeDecodeError:
         return "unknown"
+    except OSError:
+        return "unknown"

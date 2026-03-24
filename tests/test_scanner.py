@@ -1,14 +1,11 @@
 """Tests for mod scanner (discovery, mod_info parsing, lua reading)."""
 
-import sys
 import tempfile
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.scanner.mod_info import ModInfo, parse_mod_info
-from src.scanner.lua_reader import search_files, SearchHit, find_lua_files
-from src.scanner.discovery import discover_single_mod
+from pz_mod_checker.scanner.mod_info import ModInfo, parse_mod_info
+from pz_mod_checker.scanner.lua_reader import search_files, SearchHit, find_lua_files
+from pz_mod_checker.scanner.discovery import discover_single_mod
 
 
 def _create_test_mod(tmp: Path, mod_info_content: str, lua_files: dict[str, str] | None = None) -> Path:

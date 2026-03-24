@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
 
 from .version import PZVersion
 
@@ -34,9 +33,13 @@ class Rule:
     replacement: str = ""
     context: str = ""
 
+    _since_version: PZVersion | None = field(default=None, init=False, repr=False)
+
     @property
     def since_version(self) -> PZVersion:
-        return PZVersion.parse(self.since)
+        if self._since_version is None:
+            self._since_version = PZVersion.parse(self.since)
+        return self._since_version
 
 
 @dataclass
@@ -91,7 +94,7 @@ def load_no_comp(no_comp_path: Path) -> list[NoCompEntry]:
             entries.append(NoCompEntry(
                 mod_id=parts[0].strip(),
                 max_compatible_version=parts[1].strip(),
-                reason=parts[2].strip(),
+                reason="|".join(parts[2:]).strip(),
             ))
 
     return entries
@@ -102,6 +105,13 @@ def load_ruleset(data_dir: Path) -> RuleSet:
     rules = load_rules_from_dir(data_dir / "rules")
     no_comp = load_no_comp(data_dir / "no-comp.txt")
     return RuleSet(rules=rules, no_comp=no_comp)
+
+
+_VALID_RULE_KEYS = {
+    "id", "type", "severity", "since", "description", "pattern", "regex",
+    "scan", "path", "check", "old_pattern", "new_name", "field",
+    "replacement", "context",
+}
 
 
 # --- Simple YAML parser (avoids PyYAML dependency) ---
@@ -161,7 +171,9 @@ def _split_change_blocks(text: str) -> list[dict[str, str]]:
         # Continuation of current block
         if current and ":" in stripped:
             key, _, value = stripped.partition(":")
-            key = key.strip().lstrip("- ")
+            key = key.strip()
+            if key.startswith("- "):
+                key = key[2:].strip()
             value = value.strip().strip('"').strip("'")
             current[key] = value
 
@@ -176,6 +188,15 @@ def _parse_rule_block(block: dict[str, str]) -> Rule | None:
     rule_id = block.get("id", "")
     if not rule_id:
         return None
+
+    since = block.get("since", "")
+    if not since:
+        print(f"Warning: Rule '{rule_id}' has no 'since' field, skipping.", file=sys.stderr)
+        return None
+
+    unknown = set(block.keys()) - _VALID_RULE_KEYS
+    if unknown:
+        print(f"Warning: Rule '{rule_id}' has unknown fields: {unknown}", file=sys.stderr)
 
     return Rule(
         id=rule_id,

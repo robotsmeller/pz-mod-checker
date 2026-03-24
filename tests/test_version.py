@@ -1,12 +1,6 @@
 """Tests for version parsing and comparison."""
 
-import sys
-from pathlib import Path
-
-# Add project root to path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from src.rules.version import PZVersion, version_in_range
+from pz_mod_checker.rules.version import PZVersion, version_in_range
 
 
 def test_parse_full_version():
