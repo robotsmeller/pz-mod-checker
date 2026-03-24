@@ -8,83 +8,138 @@
       "id": "b42-13-registry-required",
       "type": "structure",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.13.0",
-      "description": "42.13+ mods with custom traits/professions/tags should have media/registries.lua",
+      "description": "42.13+ mods with custom traits/professions should have media/registries.lua",
       "path": "42/media/registries.lua",
-      "check": "file_exists"
+      "check": "file_exists",
+      "condition": {"has_lua_pattern": "TraitFactory|ProfessionFactory"},
+      "group": "registry-system"
     },
     {
       "id": "b42-13-chartrait-register",
       "type": "deprecated",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Custom traits must be registered via CharacterTrait.register() in registries.lua",
       "pattern": "TraitFactory",
       "scan": "*.lua",
       "replacement": "Add CharacterTrait.register('modid:traitname') to media/registries.lua",
-      "context": "42.13 requires pre-registration of custom traits in registries.lua"
+      "context": "42.13 requires pre-registration of custom traits in registries.lua",
+      "group": "registry-system"
     },
     {
       "id": "b42-13-profession-register",
       "type": "deprecated",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Custom professions should use CharacterProfession.register() in registries.lua",
       "pattern": "ProfessionFactory",
       "scan": "*.lua",
       "replacement": "Add CharacterProfession.register('modid:profname') to media/registries.lua",
-      "context": "42.13 requires pre-registration of custom professions"
+      "context": "42.13 requires pre-registration of custom professions",
+      "group": "registry-system"
+    },
+    {
+      "id": "b42-13-moodletype-register",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.13.0",
+      "description": "Custom MoodleTypes must be registered via MoodleType.register() in registries.lua",
+      "pattern": "MoodleType",
+      "scan": "*.lua",
+      "replacement": "Add MoodleType.register('modid:moodlename') to media/registries.lua",
+      "context": "42.13 registry system requires pre-registration of custom MoodleTypes",
+      "group": "registry-system"
+    },
+    {
+      "id": "b42-13-weaponcategory-register",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.13.0",
+      "description": "Custom WeaponCategories must be registered — WeaponCategory enum refactored",
+      "pattern": "WeaponCategory",
+      "scan": "*.lua",
+      "replacement": "Add WeaponCategory.register('modid:category') to media/registries.lua if defining custom categories",
+      "context": "WeaponCategory enum exposed to Lua in 42.12.1, requires registration in 42.13+",
+      "group": "registry-system"
+    },
+    {
+      "id": "b42-13-bodylocation-setexclusive",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.13.0",
+      "description": "setExclusive()/setAltModel() now require ItemBodyLocation enum instead of strings",
+      "pattern": "setExclusive|setAltModel",
+      "regex": true,
+      "scan": "*.lua",
+      "replacement": "Use ItemBodyLocation enum: e.g. setExclusive(ItemBodyLocation.Shoes) instead of setExclusive('Shoes')",
+      "context": "ItemBodyLocation converted from enum to registry class in 42.13"
     },
     {
       "id": "b42-13-drunkenness-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Drunkenness stat replaced with CharacterStat.INTOXICATION",
       "old_pattern": "getDrunkenness|setDrunkenness|Drunkenness\\s*=",
       "new_name": "CharacterStat.INTOXICATION",
       "regex": true,
       "scan": "*.lua",
-      "context": "Character stats refactored to CharacterStat enum in 42.13"
+      "context": "Character stats refactored to CharacterStat enum in 42.13",
+      "group": "character-stat-refactor"
     },
     {
       "id": "b42-13-stressfromcigs-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "StressFromCigarettes replaced with CharacterStat.NICOTINE_WITHDRAWAL",
       "old_pattern": "StressFromCigarettes",
       "new_name": "CharacterStat.NICOTINE_WITHDRAWAL",
       "scan": "*.lua",
-      "context": "Character stats refactored in 42.13"
+      "context": "Character stats refactored in 42.13",
+      "group": "character-stat-refactor"
     },
     {
       "id": "b42-13-boredomlevel-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "BoredomLevel replaced with CharacterStat.BOREDOM",
       "old_pattern": "getBoredomLevel|setBoredomLevel|BoredomLevel\\s*=",
       "new_name": "CharacterStat.BOREDOM",
       "regex": true,
       "scan": "*.lua",
-      "context": "Character stats refactored in 42.13"
+      "context": "Character stats refactored in 42.13",
+      "group": "character-stat-refactor"
     },
     {
       "id": "b42-13-fear-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Legacy Fear stat removed",
       "pattern": "getFear\\b|setFear\\b",
       "regex": true,
       "scan": "*.lua",
-      "context": "Fear stat removed entirely in 42.13"
+      "context": "Fear stat removed entirely in 42.13",
+      "group": "character-stat-refactor"
     },
     {
       "id": "b42-13-itemtag-string",
       "type": "deprecated",
       "severity": "warning",
+      "confidence": "likely",
       "since": "42.13.0",
       "description": "ItemTag changed from enum to registry-based class — string comparisons may break",
       "pattern": "ItemTag\\.",
@@ -96,6 +151,7 @@
       "id": "b42-13-recipe-seeall-removed",
       "type": "api_removal",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Recipe.SeeAll cheat removed",
       "pattern": "Recipe.SeeAll",
@@ -106,6 +162,7 @@
       "id": "b42-13-needtobelearn-typo",
       "type": "api_rename",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "needTobeLearn typo should be needToBeLearn",
       "old_pattern": "needTobeLearn",
@@ -117,6 +174,7 @@
       "id": "b42-13-satchel-location",
       "type": "deprecated",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Satchels/water bags moved from ammo_strap/back to new satchel body location",
       "pattern": "ammo_strap",
@@ -128,23 +186,27 @@
       "id": "b42-13-crushed-limestone",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Crushed Limestone removed — recipes now use Limestone directly",
       "pattern": "CrushedLimestone",
       "scan": "*.lua",
-      "context": "Item removed in 42.13"
+      "context": "Item removed in 42.13",
+      "group": "crushed-ore-removal"
     },
     {
       "id": "b42-13-crushed-ore-script",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.13.0",
       "description": "Crushed ore items removed (copper, iron, limestone)",
       "pattern": "CrushedLimestone|CrushedCopperOre|CrushedIronOre",
       "regex": true,
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Items removed in 42.13"
+      "context": "Items removed in 42.13",
+      "group": "crushed-ore-removal"
     }
   ]
 }

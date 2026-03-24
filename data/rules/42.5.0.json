@@ -1,0 +1,19 @@
+{
+  "version": "42.5.0",
+  "summary": "ISSearchManager removed, HaloTextHelper replaces halo text system",
+  "source": "https://theindiestone.com/forums/index.php?/topic/81787-build-4250-unstable-released/",
+  "release_date": "2025-02-15",
+  "changes": [
+    {
+      "id": "b42-5-issearchmanager-removed",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.5.0",
+      "description": "ISSearchManager removed — halo text now uses HaloTextHelper",
+      "pattern": "ISSearchManager",
+      "scan": "*.lua",
+      "context": "All ISSearchManager halo text references replaced by HaloTextHelper in 42.5"
+    }
+  ]
+}

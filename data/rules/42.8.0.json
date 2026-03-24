@@ -8,6 +8,7 @@
       "id": "b42-8-attachments-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "Attachments.lua removed — biome attachment system rewritten",
       "pattern": "require\\s*\\(\\s*[\\\"'].*Attachments[\\\"']",
@@ -19,6 +20,7 @@
       "id": "b42-8-similar-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "Similar.lua removed — biome similarity system rewritten",
       "pattern": "require\\s*\\(\\s*[\\\"'].*Similar[\\\"']",
@@ -30,47 +32,56 @@
       "id": "b42-8-smallarmorplate-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "SmallArmorPlate item removed from blacksmithing",
       "pattern": "SmallArmorPlate",
       "scan": "*.lua",
-      "context": "Item removed in 42.8 blacksmithing overhaul"
+      "context": "Item removed in 42.8 blacksmithing overhaul",
+      "group": "blacksmithing-items"
     },
     {
       "id": "b42-8-ironrod-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "IronRod items removed",
       "pattern": "IronRod",
       "scan": "*.lua",
-      "context": "Blacksmithing items removed in 42.8"
+      "context": "Blacksmithing items removed in 42.8",
+      "group": "blacksmithing-items"
     },
     {
       "id": "b42-8-ironslug-removed",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "IronSlug item removed from blacksmithing",
       "pattern": "IronSlug",
       "scan": "*.lua",
-      "context": "Blacksmithing items removed in 42.8"
+      "context": "Blacksmithing items removed in 42.8",
+      "group": "blacksmithing-items"
     },
     {
       "id": "b42-8-ironrod-script",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "IronRod items removed — check script references",
       "pattern": "IronRod",
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Blacksmithing items removed in 42.8"
+      "context": "Blacksmithing items removed in 42.8",
+      "group": "blacksmithing-items"
     },
     {
       "id": "b42-8-everyhours-timing",
       "type": "deprecated",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.8.0",
       "description": "EveryHours event now fires AFTER GameTime updates (was before)",
       "pattern": "EveryHours",

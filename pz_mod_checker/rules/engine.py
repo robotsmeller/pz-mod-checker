@@ -34,6 +34,38 @@ class Finding:
     line_text: str | None = None
     context: str | None = None
     suggestion: str | None = None
+    confidence: str = "likely"  # certain, likely, speculative
+    group: str = ""  # rule group for collapsing related findings
+
+
+def _make_finding(
+    mod: ModInfo,
+    rule: Rule | None,
+    *,
+    rule_id: str = "",
+    severity: str = "",
+    message: str = "",
+    file_path: str | None = None,
+    line_number: int | None = None,
+    line_text: str | None = None,
+    context: str | None = None,
+    suggestion: str | None = None,
+) -> Finding:
+    """Centralized Finding construction from a Rule (or without one for no-comp)."""
+    return Finding(
+        mod_id=mod.mod_id,
+        mod_name=mod.name,
+        rule_id=rule.id if rule else rule_id,
+        severity=rule.severity if rule else severity,
+        message=rule.description if rule else message,
+        file_path=file_path,
+        line_number=line_number,
+        line_text=line_text,
+        context=context if context is not None else (rule.context if rule else None),
+        suggestion=suggestion,
+        confidence=rule.confidence if rule else "certain",
+        group=rule.group if rule else "",
+    )
 
 
 def _cached_read_lines(file_path: Path, cache: FileCache) -> list[str]:
@@ -101,9 +133,8 @@ def _check_no_comp(
         if mod.mod_id == entry.mod_id:
             max_ver = PZVersion.parse(entry.max_compatible_version)
             if target_version > max_ver:
-                findings.append(Finding(
-                    mod_id=mod.mod_id,
-                    mod_name=mod.name,
+                findings.append(_make_finding(
+                    mod, None,
                     rule_id="no-comp",
                     severity="breaking",
                     message=f"Known incompatible: {entry.reason}",
@@ -113,8 +144,72 @@ def _check_no_comp(
     return findings
 
 
+def _check_condition(mod: ModInfo, rule: Rule, file_cache: FileCache) -> bool:
+    """Evaluate a rule's condition. All conditions are AND'd — all must pass."""
+    cond = rule.condition
+    if not cond:
+        return True
+
+    checks: list[bool] = []
+
+    # has_lua_pattern: only apply if mod's Lua files contain this regex
+    if "has_lua_pattern" in cond:
+        pattern_str = cond["has_lua_pattern"]
+        found = False
+        try:
+            compiled = re.compile(pattern_str)
+            for lua_file in find_lua_files(mod.lua_root):
+                if found:
+                    break
+                for line in _cached_read_lines(lua_file, file_cache):
+                    if compiled.search(line):
+                        found = True
+                        break
+        except re.error:
+            found = True  # invalid condition → apply rule anyway
+        checks.append(found)
+
+    # has_files_in_dir: only apply if directory contains files matching glob
+    if "has_files_in_dir" in cond:
+        dir_path = mod.path / cond["has_files_in_dir"]
+        file_glob = cond.get("file_glob", "*")
+        checks.append(dir_path.is_dir() and bool(list(dir_path.glob(file_glob))))
+
+    # has_lua_files: only apply if mod has any .lua files
+    if cond.get("has_lua_files") == "true":
+        checks.append(bool(find_lua_files(mod.lua_root)))
+
+    # has_content_dir: only apply if mod has files under media/lua or media/scripts at root
+    if cond.get("has_content_dir") == "true":
+        root_lua = mod.path / "media" / "lua"
+        root_scripts = mod.path / "media" / "scripts"
+        checks.append(
+            (root_lua.is_dir() and bool(find_lua_files(root_lua))) or
+            (root_scripts.is_dir() and bool(find_script_files(root_scripts)))
+        )
+
+    # has_b42_folder / not_has_b42_folder
+    if cond.get("has_b42_folder") == "true":
+        checks.append(mod.has_b42_folder)
+    if cond.get("not_has_b42_folder") == "true":
+        checks.append(not mod.has_b42_folder)
+
+    # has_common_folder / not_has_common_folder
+    if cond.get("not_has_common_folder") == "true":
+        checks.append(not mod.has_common_folder)
+
+    # has_version_min: only apply if mod.info declares versionMin
+    if cond.get("has_version_min") == "true":
+        checks.append(bool(mod.version_min))
+
+    return all(checks) if checks else True
+
+
 def _apply_rule(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Finding]:
     """Apply a single rule to a mod."""
+    if not _check_condition(mod, rule, file_cache):
+        return []
+
     match rule.type:
         case "structure":
             return _check_structure(mod, rule)
@@ -148,24 +243,10 @@ def _check_structure(mod: ModInfo, rule: Rule) -> list[Finding]:
     match rule.check:
         case "dir_exists":
             if not target.is_dir():
-                return [Finding(
-                    mod_id=mod.mod_id,
-                    mod_name=mod.name,
-                    rule_id=rule.id,
-                    severity=rule.severity,
-                    message=rule.description,
-                    context=f"Missing directory: {rule.path}",
-                )]
+                return [_make_finding(mod, rule, context=f"Missing directory: {rule.path}")]
         case "file_exists":
             if not target.is_file():
-                return [Finding(
-                    mod_id=mod.mod_id,
-                    mod_name=mod.name,
-                    rule_id=rule.id,
-                    severity=rule.severity,
-                    message=rule.description,
-                    context=f"Missing file: {rule.path}",
-                )]
+                return [_make_finding(mod, rule, context=f"Missing file: {rule.path}")]
         case _:
             if rule.check:
                 print(f"Warning: Unknown check type '{rule.check}' for rule '{rule.id}'.", file=sys.stderr)
@@ -219,16 +300,11 @@ def _check_pattern(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Find
         elif rule.type == "deprecated" and rule.replacement:
             suggestion = f"Use instead: {rule.replacement}"
 
-        findings.append(Finding(
-            mod_id=mod.mod_id,
-            mod_name=mod.name,
-            rule_id=rule.id,
-            severity=rule.severity,
-            message=rule.description,
+        findings.append(_make_finding(
+            mod, rule,
             file_path=str(hit_path.relative_to(mod.path)),
             line_number=hit_line_num,
             line_text=hit_line_text,
-            context=rule.context,
             suggestion=suggestion,
         ))
 
@@ -267,16 +343,11 @@ def _check_script_syntax(mod: ModInfo, rule: Rule, file_cache: FileCache) -> lis
                     hits.append((file_path, line_num, line.strip()))
 
     return [
-        Finding(
-            mod_id=mod.mod_id,
-            mod_name=mod.name,
-            rule_id=rule.id,
-            severity=rule.severity,
-            message=rule.description,
+        _make_finding(
+            mod, rule,
             file_path=str(hit_path.relative_to(mod.path)),
             line_number=hit_line_num,
             line_text=hit_line_text,
-            context=rule.context,
         )
         for hit_path, hit_line_num, hit_line_text in hits
     ]
@@ -291,25 +362,11 @@ def _check_mod_info(mod: ModInfo, rule: Rule) -> list[Finding]:
     match rule.check:
         case "exists":
             if field_name not in mod.raw:
-                return [Finding(
-                    mod_id=mod.mod_id,
-                    mod_name=mod.name,
-                    rule_id=rule.id,
-                    severity=rule.severity,
-                    message=rule.description,
-                    context=f"mod.info missing field: {field_name}",
-                )]
+                return [_make_finding(mod, rule, context=f"mod.info missing field: {field_name}")]
         case "not_empty":
             value = mod.raw.get(field_name, "")
             if not value:
-                return [Finding(
-                    mod_id=mod.mod_id,
-                    mod_name=mod.name,
-                    rule_id=rule.id,
-                    severity=rule.severity,
-                    message=rule.description,
-                    context=f"mod.info field '{field_name}' is empty",
-                )]
+                return [_make_finding(mod, rule, context=f"mod.info field '{field_name}' is empty")]
         case _:
             if rule.check:
                 print(f"Warning: Unknown check type '{rule.check}' for rule '{rule.id}'.", file=sys.stderr)
@@ -330,12 +387,8 @@ def _check_translation(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[
             for f in files:
                 encoding = check_file_encoding(f)
                 if encoding != "utf-8":
-                    findings.append(Finding(
-                        mod_id=mod.mod_id,
-                        mod_name=mod.name,
-                        rule_id=rule.id,
-                        severity=rule.severity,
-                        message=rule.description,
+                    findings.append(_make_finding(
+                        mod, rule,
                         file_path=str(f.relative_to(mod.path)),
                         context=f"File encoding: {encoding} (expected UTF-8)",
                     ))

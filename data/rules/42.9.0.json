@@ -8,47 +8,55 @@
       "id": "b42-9-croptops-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.9.0",
       "description": "CropTops body location renamed to TankTop",
       "old_pattern": "CropTops",
       "new_name": "TankTop",
       "scan": "*.lua",
-      "context": "Body location renamed in 42.9"
+      "context": "Body location renamed in 42.9",
+      "group": "body-location-renames"
     },
     {
       "id": "b42-9-croptops-script",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.9.0",
       "description": "CropTops body location renamed to TankTop in scripts",
       "old_pattern": "CropTops",
       "new_name": "TankTop",
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Body location renamed in 42.9"
+      "context": "Body location renamed in 42.9",
+      "group": "body-location-renames"
     },
     {
       "id": "b42-9-bandeau-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.9.0",
       "description": "Bandeau body location renamed to UnderwearTop",
       "old_pattern": "Bandeau",
       "new_name": "UnderwearTop",
       "scan": "*.lua",
-      "context": "Body location renamed in 42.9"
+      "context": "Body location renamed in 42.9",
+      "group": "body-location-renames"
     },
     {
       "id": "b42-9-bandeau-script",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.9.0",
       "description": "Bandeau body location renamed to UnderwearTop in scripts",
       "old_pattern": "Bandeau",
       "new_name": "UnderwearTop",
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Body location renamed in 42.9"
+      "context": "Body location renamed in 42.9",
+      "group": "body-location-renames"
     }
   ]
 }

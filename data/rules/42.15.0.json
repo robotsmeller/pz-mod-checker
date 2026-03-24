@@ -8,32 +8,38 @@
       "id": "b42-15-translation-json",
       "type": "structure",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.15.0",
-      "description": "42.15+ uses JSON translation files — check that translations are in .json format",
+      "description": "42.15+ uses JSON translation files — .txt translations should be migrated to JSON",
       "path": "42/media/lua/shared/Translate/",
-      "check": "dir_exists"
+      "check": "dir_exists",
+      "condition": {"has_files_in_dir": "media/lua/shared/Translate", "file_glob": "*.txt"}
     },
     {
       "id": "b42-15-gamemode-builder",
       "type": "api_rename",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.15.0",
       "description": "Builder game mode removed — replaced with new mode names",
-      "old_pattern": "\\\"Builder\\",
+      "old_pattern": "\\\"Builder\\\"",
       "new_name": "Apocalypse/Outbreak/Extinction/Rising",
       "scan": "*.lua",
-      "context": "Game modes renamed in 42.15"
+      "context": "Game modes renamed in 42.15",
+      "group": "gamemode-renames"
     },
     {
       "id": "b42-15-gamemode-survivor",
       "type": "api_rename",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.15.0",
       "description": "Survivor game mode removed — replaced with new mode names",
-      "old_pattern": "\\\"Survivor\\",
+      "old_pattern": "\\\"Survivor\\\"",
       "new_name": "Apocalypse/Outbreak/Extinction/Rising",
       "scan": "*.lua",
-      "context": "Game modes renamed in 42.15"
+      "context": "Game modes renamed in 42.15",
+      "group": "gamemode-renames"
     }
   ]
 }

@@ -31,6 +31,9 @@ class Rule:
     field_name: str = ""  # for mod_info rules
     replacement: str = ""
     context: str = ""
+    condition: dict[str, str] | None = None
+    confidence: str = "likely"  # certain, likely, speculative
+    group: str = ""  # rule group for collapsing related findings
 
     _since_version: PZVersion | None = field(default=None, init=False, repr=False)
 
@@ -109,7 +112,7 @@ def load_ruleset(data_dir: Path) -> RuleSet:
 _VALID_RULE_KEYS = {
     "id", "type", "severity", "since", "description", "pattern", "regex",
     "scan", "path", "check", "old_pattern", "new_name", "field",
-    "replacement", "context",
+    "replacement", "context", "condition", "confidence", "group",
 }
 
 
@@ -167,4 +170,7 @@ def _parse_rule_block(block: dict[str, Any]) -> Rule | None:
         field_name=block.get("field", ""),
         replacement=block.get("replacement", ""),
         context=block.get("context", ""),
+        condition=block.get("condition"),
+        confidence=block.get("confidence", "likely"),
+        group=block.get("group", ""),
     )

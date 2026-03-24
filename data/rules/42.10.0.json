@@ -8,6 +8,7 @@
       "id": "b42-10-oncreate-signature",
       "type": "deprecated",
       "severity": "info",
+      "confidence": "likely",
       "since": "42.10.0",
       "description": "OnCreate for buildable tiles now receives table {thumpable, craftrecipedata, character} instead of single object",
       "pattern": "function\\s+\\w*[Oo]n[Cc]reate\\s*\\(",

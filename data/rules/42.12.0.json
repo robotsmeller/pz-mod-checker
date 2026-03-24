@@ -8,6 +8,7 @@
       "id": "b42-12-drawcircleexplosion-moved",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.12.0",
       "description": "drawCircleExplosion moved from IsoGridSquare to IsoTraps",
       "pattern": "drawCircleExplosion",
@@ -18,6 +19,7 @@
       "id": "b42-12-firepower-renamed",
       "type": "api_rename",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.12.0",
       "description": "FirePower script property renamed to FireStartingEnergy/FireStartingChance",
       "old_pattern": "FirePower",
@@ -30,12 +32,25 @@
       "id": "b42-12-metalworking-renamed",
       "type": "api_rename",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.12.0",
       "description": "Metalworking renamed to Blacksmithing in player-facing text",
       "old_pattern": "Metalworking",
       "new_name": "Blacksmithing",
       "scan": "*.lua",
       "context": "Skill/category renamed in 42.12"
+    },
+    {
+      "id": "b42-12-vehiclemechanics-ui",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.12.0",
+      "description": "ISVehicleMechanics UI changed — vehicle mechanics context menu option removed",
+      "pattern": "ISVehicleMechanics",
+      "scan": "*.lua",
+      "replacement": "Check B42 vehicle UI API for updated approach",
+      "context": "Vehicle mechanics RMC option removed in 42.12, UI overhauled"
     }
   ]
 }

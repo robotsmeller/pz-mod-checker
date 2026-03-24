@@ -7,94 +7,128 @@
     {
       "id": "b42-common-folder",
       "type": "structure",
-      "severity": "warning",
+      "severity": "info",
+      "confidence": "likely",
       "since": "42.0.0",
-      "description": "B42 requires common/ folder in mod root (even if empty)",
+      "description": "B42 mods need either common/ or 42/ folder — this mod has neither",
       "path": "common/",
-      "check": "dir_exists"
+      "check": "dir_exists",
+      "condition": {"has_lua_files": "true", "not_has_b42_folder": "true"},
+      "group": "mod-structure"
     },
     {
       "id": "b42-versioned-folder",
       "type": "structure",
-      "severity": "warning",
+      "severity": "info",
+      "confidence": "likely",
       "since": "42.0.0",
-      "description": "B42 mods should have a 42/ subfolder with media/ and mod.info",
+      "description": "B42 mods need either 42/ or common/ folder — this mod has neither",
       "path": "42/",
-      "check": "dir_exists"
+      "check": "dir_exists",
+      "condition": {"has_version_min": "true", "not_has_common_folder": "true"},
+      "group": "mod-structure"
     },
     {
       "id": "b42-modinfo-versionmin",
       "type": "mod_info",
       "severity": "info",
+      "confidence": "certain",
       "since": "42.0.0",
       "description": "mod.info should declare versionMin for B42 compatibility",
       "check": "exists",
-      "field": "versionMin"
+      "field": "versionMin",
+      "condition": {"has_b42_folder": "true"},
+      "group": "mod-structure"
     },
     {
       "id": "b42-removed-isinventorypage",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.0.0",
       "description": "ISInventoryPage removed — inventory UI completely rewritten in B42",
       "pattern": "ISInventoryPage",
       "scan": "*.lua",
-      "context": "B42 replaced the entire inventory UI framework"
+      "context": "B42 replaced the entire inventory UI framework",
+      "group": "inventory-ui-rewrite"
     },
     {
       "id": "b42-removed-isinventorypane",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.0.0",
       "description": "ISInventoryPane removed — part of B41 inventory UI",
       "pattern": "ISInventoryPane",
       "scan": "*.lua",
-      "context": "B42 replaced the entire inventory UI framework"
+      "context": "B42 replaced the entire inventory UI framework",
+      "group": "inventory-ui-rewrite"
     },
     {
       "id": "b42-removed-transferall",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.0.0",
       "description": "ISInventoryTransferAction removed — transfer system rewritten",
       "pattern": "ISInventoryTransferAction",
       "scan": "*.lua",
-      "context": "Inventory transfer actions are completely new in B42"
+      "context": "Inventory transfer actions are completely new in B42",
+      "group": "inventory-ui-rewrite"
     },
     {
-      "id": "b42-changed-iscraftingui",
+      "id": "b42-removed-isinventorypanecontextmenu",
       "type": "api_removal",
       "severity": "breaking",
+      "confidence": "certain",
       "since": "42.0.0",
-      "description": "ISCraftingUI removed — crafting system completely overhauled in B42",
-      "pattern": "ISCraftingUI",
+      "description": "ISInventoryPaneContextMenu removed — inventory context menus rewritten in B42",
+      "pattern": "ISInventoryPaneContextMenu",
       "scan": "*.lua",
-      "context": "B42 crafting system is entirely new"
-    },
-    {
-      "id": "b42-changed-recipe-system",
-      "type": "api_removal",
-      "severity": "breaking",
-      "since": "42.0.0",
-      "description": "Old recipe Lua API removed — B42 uses new crafting system",
-      "pattern": "getKnownRecipes",
-      "scan": "*.lua",
-      "context": "Recipe system completely rewritten in B42"
+      "context": "B42 replaced the entire inventory UI framework including context menus",
+      "group": "inventory-ui-rewrite"
     },
     {
       "id": "b42-removed-istooltipinv",
       "type": "api_removal",
       "severity": "warning",
+      "confidence": "likely",
       "since": "42.0.0",
       "description": "ISToolTipInv may be changed/removed in B42",
       "pattern": "ISToolTipInv",
       "scan": "*.lua",
-      "context": "Tooltip system updated with new inventory"
+      "context": "Tooltip system updated with new inventory",
+      "group": "inventory-ui-rewrite"
+    },
+    {
+      "id": "b42-changed-iscraftingui",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "ISCraftingUI removed — crafting system completely overhauled in B42",
+      "pattern": "ISCraftingUI",
+      "scan": "*.lua",
+      "context": "B42 crafting system is entirely new",
+      "group": "crafting-overhaul"
+    },
+    {
+      "id": "b42-changed-recipe-system",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.0.0",
+      "description": "Old recipe Lua API removed — B42 uses new crafting system",
+      "pattern": "getKnownRecipes",
+      "scan": "*.lua",
+      "context": "Recipe system completely rewritten in B42",
+      "group": "crafting-overhaul"
     },
     {
       "id": "b42-old-modoptions",
       "type": "api_removal",
       "severity": "warning",
+      "confidence": "certain",
       "since": "42.0.0",
       "description": "B41 ModOptions implementation replaced with native ModOptions API",
       "pattern": "ModOptions:getInstance",
@@ -105,6 +139,7 @@
       "id": "b42-old-item-type-food",
       "type": "script_syntax",
       "severity": "warning",
+      "confidence": "speculative",
       "since": "42.0.0",
       "description": "Food item Type may have changed format in B42",
       "pattern": "Type\\s*=\\s*Food",
@@ -116,7 +151,8 @@
     {
       "id": "b42-getspecificplayer",
       "type": "api_rename",
-      "severity": "warning",
+      "severity": "info",
+      "confidence": "speculative",
       "since": "42.0.0",
       "description": "getSpecificPlayer may behave differently in B42 multiplayer",
       "old_pattern": "getSpecificPlayer",
@@ -128,6 +164,7 @@
       "id": "b42-luamanager-globalobject",
       "type": "deprecated",
       "severity": "info",
+      "confidence": "speculative",
       "since": "42.0.0",
       "description": "Some LuaManager.GlobalObject methods deprecated in B42",
       "pattern": "LuaManager.GlobalObject",
