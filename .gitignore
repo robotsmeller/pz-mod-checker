@@ -12,3 +12,4 @@ venv/
 .claude/settings.local.json
 scroll-analysis-output/
 .claude/settings.json
+audit-report.md

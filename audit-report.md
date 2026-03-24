@@ -1,1 +1,0 @@
-There's already an `audit-report.md` from Soren's initial pass. I'll overwrite it with the final consolidated report — that's the whole point of this synthesis. Want me to go ahead and write it to disk?
