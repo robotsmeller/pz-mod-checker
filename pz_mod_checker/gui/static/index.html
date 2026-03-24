@@ -254,7 +254,7 @@
 
     <!-- ==================== BISECT TAB ==================== -->
     <section id="tab-bisect" class="tab-panel hidden" role="tabpanel">
-      <p class="text-xs text-slate-500 mb-3">Crash isolation. Binary search through your mods to find the one crashing PZ. Splits your mod list in half each round -- typically finds the culprit in <strong class="text-slate-400">7-8 rounds</strong> for 165 mods. Your original mod list is restored when done.</p>
+      <p class="text-xs text-slate-500 mb-3" id="bisect-desc">Crash isolation. Binary search through your mods to find the one crashing PZ. Splits your mod list in half each round -- your original mod list is restored when done.</p>
       <div class="card p-5 mb-4">
         <div id="bisect-controls" class="flex items-center gap-3 flex-wrap">
           <button id="btn-bisect-start" onclick="bisectAction('start')"
@@ -1220,7 +1220,15 @@ async function refreshBisect() {
   }
 }
 
+function bisectRoundEstimate() {
+  const count = parseInt($('active-mod-count')?.textContent) || 0;
+  if (count < 2) return '';
+  const rounds = Math.ceil(Math.log2(count));
+  return ` Typically takes <strong class="text-slate-200">${rounds} rounds</strong> for your ${count} mods.`;
+}
+
 function bisectOnboardingHtml() {
+  const estimate = bisectRoundEstimate();
   return `<div class="card p-5">
     <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
     <div class="space-y-3 text-sm text-slate-400">
@@ -1234,7 +1242,7 @@ function bisectOnboardingHtml() {
       </div>
       <div class="flex gap-3 items-start">
         <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
-        <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
+        <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found.${estimate}</span>
       </div>
     </div>
   </div>`;

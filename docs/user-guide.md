@@ -145,7 +145,7 @@ pz-mod-checker manage --profile-list              # List all profiles
 
 ## Bisect
 
-Crash isolation. Binary search through your mods to find the one crashing PZ. Typically finds the culprit in **7-8 rounds** for 165 mods. Your original mod list is restored when done.
+Crash isolation. Binary search through your mods to find the one crashing PZ. Rounds needed = log2(mod count) -- roughly **8 rounds for 200 mods**, 7 for 100, 5 for 30. The GUI shows a personalized estimate based on your active mod count. Your original mod list is restored when done.
 
 ### How It Works
 

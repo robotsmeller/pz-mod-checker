@@ -32,7 +32,7 @@ pz-mod-checker bisect start
 | **Scan** | 51 version-keyed rules covering B42.0 through B42.15. Severity filters, pagination, search, inline disable buttons. Sorted by severity (breaking first). |
 | **Diagnose** | Parses `console.txt` crash logs with mod attribution. Plain-language explanations for `require()` failures with fix suggestions. |
 | **Mod Manager** | Toggle mods on/off, search, sort (A-Z, enabled, updates), bulk actions, Workshop update checking with staleness badges. |
-| **Bisect** | Binary search to find the crashing mod. ~8 rounds for 165 mods. Step-by-step onboarding. |
+| **Bisect** | Binary search to find the crashing mod. ~8 rounds for 200 mods. Personalized round estimate in GUI. |
 | **Workshop** | Queries Steam Workshop API to detect outdated mods, stale pre-B42 mods, and available updates. 24h cache. |
 | **Web GUI** | Localhost dashboard at `:8642`. Dark theme with PZ green accents, four tabs, global scope bar, JSON API. |
 | **Dev Mode** | Rule IDs on findings, export per-mod or full reports as TXT/MD/JSON. Aimed at mod developers. |
