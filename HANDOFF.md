@@ -87,14 +87,46 @@ GUI v2 complete with full audit fixes, accessibility, workshop integration, and 
 - #2 -- PyInstaller .exe + pip publish (next priority)
 - #3 -- Documentation (ongoing)
 
-## Next Session Priority
+## Critical: Rule Quality (discovered end of session 3)
 
-1. **Distribution** -- PyInstaller .exe + pip publish (issue #2)
-2. Workshop staleness could be shown more prominently in scan suggestions
-3. Consider splitting index.html into modules if GUI keeps growing (~1500 lines)
+Scanning 258 mods flags 258/258 with issues (100%). Structural rules are too broad:
 
-## Session 3 Commits
+| Rule | Mods Hit | Problem |
+|------|----------|---------|
+| `b42-13-registry-required` | 257/258 | Flags ANY mod without registries.lua — should only flag mods with trait/profession code |
+| `b42-15-translation-json` | 210/258 | Flags ANY mod without JSON translations — most mods have none |
+| `b42-modinfo-versionmin` | 189/258 | Missing versionMin — noisy informational |
+| `b42-versioned-folder` | 149/258 | Missing `42/` folder — many B42 mods use root structure |
+
+Pattern-based rules (API removals, renames) are accurate: ISInventoryPane hits 33 mods, transferAll hits 15.
+
+## Next Session: Rule Engineering
+
+### Phase 1: Fix False Positives (do first)
+- Tighten structural rules with conditional checks ("if mod does Y, does it have X?")
+- Target: <30% of mods flagged (down from 100%)
+- This is logic refinement, no web research needed
+
+### Phase 2: Research New Rules
+- Primary source: https://steamdb.info/app/108600/patchnotes/ (complete B42 changelogs)
+- Secondary: PZwiki version history, FWolfe modding guide, awesome-b42-resources
+- Use extended thinking to synthesize changelog entries into rule candidates
+- Cross-reference against existing 51 rules to find gaps
+
+### Phase 3: Validation
+- Run refined rules against 258-mod test set
+- Verify real issues still caught, false positives eliminated
+
+### After Rules
+- Distribution (PyInstaller .exe + pip publish) -- issue #2
+- Consider splitting index.html into modules (~1500 lines)
+
+## Session 3 Commits (17)
 ```
+25bdcdd Re-scan after Disable All Breaking Mods
+5e52571 Dynamic bisect round estimate based on active mod count
+cc708ce Workshop badges link to Steam Workshop pages
+fca4d5c Update README, user guide, and HANDOFF for session 3 close
 cec8930 Gitignore audit-report.md
 db15866 Add .gitignore entries for scroll-analysis-output and .claude/settings
 f989bbf Test pass: fix 5 bugs, add 8 unit tests, 51 tests passing
