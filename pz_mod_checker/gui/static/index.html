@@ -706,10 +706,17 @@ function renderScanResults(data) {
   }
 }
 
+function confidenceBadge(conf) {
+  if (!conf || conf === 'certain') return '';
+  const cls = conf === 'speculative' ? 'text-slate-600 bg-slate-800' : 'text-slate-500 bg-slate-800';
+  return ` <span class="text-[10px] px-1 py-0 rounded ${cls}">${conf}</span>`;
+}
+
 function renderFinding(f) {
-  return `<div class="bg-surface-1 rounded p-3 text-sm">
+  const opacity = f.confidence === 'speculative' ? ' opacity-60' : '';
+  return `<div class="bg-surface-1 rounded p-3 text-sm${opacity}">
     <div class="flex items-start gap-2 mb-1">
-      ${severityBadge(f.severity)}
+      ${severityBadge(f.severity)}${confidenceBadge(f.confidence)}
       <span class="text-slate-200">${esc(f.message)}</span>
       ${f.rule_id ? `<span class="dev-only-inline text-xs text-slate-600 font-mono ml-auto flex-shrink-0">${esc(f.rule_id)}</span>` : ''}
     </div>
@@ -720,32 +727,78 @@ function renderFinding(f) {
   </div>`;
 }
 
-function renderFindingGroups(findings) {
-  const sevOrder = ['breaking', 'warning', 'info'];
-  const groups = {};
+function groupLabel(g) {
+  return g.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function maxSeverity(findings) {
+  const order = { breaking: 0, warning: 1, info: 2 };
+  let best = 'info';
   for (const f of findings) {
-    (groups[f.severity] = groups[f.severity] || []).push(f);
+    if ((order[f.severity] ?? 2) < (order[best] ?? 2)) best = f.severity;
   }
-  const activeSevs = sevOrder.filter(s => groups[s]);
+  return best;
+}
 
-  // If only one severity type, render flat — no subgroups needed
-  if (activeSevs.length <= 1) {
-    return findings.map(renderFinding).join('');
+function renderFindingGroups(findings) {
+  // Separate grouped vs ungrouped findings
+  const ruleGroups = {};
+  const ungrouped = [];
+  for (const f of findings) {
+    if (f.group) {
+      (ruleGroups[f.group] = ruleGroups[f.group] || []).push(f);
+    } else {
+      ungrouped.push(f);
+    }
   }
 
-  // Multiple severities: group with breaking shown, others collapsed
-  return activeSevs.map(sev => {
-    const items = groups[sev];
-    const label = sev === 'breaking' ? 'Breaking' : sev === 'warning' ? 'Warnings' : 'Info';
-    const open = sev === 'breaking' ? ' open' : '';
-    return `<details${open} class="border border-surface-3 rounded">
+  const sevOrder = { breaking: 0, warning: 1, info: 2 };
+  let html = '';
+
+  // Render rule groups first, sorted by max severity
+  const sortedGroups = Object.entries(ruleGroups).sort((a, b) =>
+    (sevOrder[maxSeverity(a[1])] ?? 2) - (sevOrder[maxSeverity(b[1])] ?? 2)
+  );
+
+  for (const [groupName, items] of sortedGroups) {
+    const gSev = maxSeverity(items);
+    const isBreaking = gSev === 'breaking';
+    html += `<details${isBreaking ? ' open' : ''} class="border border-surface-3 rounded">
       <summary class="px-3 py-2 text-xs font-medium text-slate-400 hover:bg-surface-3 rounded cursor-pointer flex items-center justify-between">
-        <span>${severityBadge(sev)} ${label}</span>
-        <span class="text-slate-500">${items.length}</span>
+        <span>${severityBadge(gSev)} <span class="text-slate-300">${groupLabel(groupName)}</span></span>
+        <span class="text-slate-500">${items.length} issue${items.length !== 1 ? 's' : ''}</span>
       </summary>
       <div class="px-2 pb-2 space-y-1">${items.map(renderFinding).join('')}</div>
     </details>`;
-  }).join('');
+  }
+
+  // Render ungrouped findings by severity
+  if (ungrouped.length > 0) {
+    const bySev = {};
+    for (const f of ungrouped) {
+      (bySev[f.severity] = bySev[f.severity] || []).push(f);
+    }
+    const activeSevs = ['breaking', 'warning', 'info'].filter(s => bySev[s]);
+
+    if (activeSevs.length <= 1 && sortedGroups.length === 0) {
+      html += ungrouped.map(renderFinding).join('');
+    } else {
+      for (const sev of activeSevs) {
+        const items = bySev[sev];
+        const label = sev === 'breaking' ? 'Breaking' : sev === 'warning' ? 'Warnings' : 'Info';
+        const open = sev === 'breaking' ? ' open' : '';
+        html += `<details${open} class="border border-surface-3 rounded">
+          <summary class="px-3 py-2 text-xs font-medium text-slate-400 hover:bg-surface-3 rounded cursor-pointer flex items-center justify-between">
+            <span>${severityBadge(sev)} ${label}</span>
+            <span class="text-slate-500">${items.length}</span>
+          </summary>
+          <div class="px-2 pb-2 space-y-1">${items.map(renderFinding).join('')}</div>
+        </details>`;
+      }
+    }
+  }
+
+  return html;
 }
 
 function toggleSevFilter(sev) {

@@ -100,35 +100,59 @@ def _print_mod_section(
     else:
         print(f"  {mod_name} ({mod_id})")
 
-    for finding in findings:
-        severity = format_severity(finding.severity, use_color)
-        print(f"    {severity} {finding.message}")
+    # Group findings by group field, then render
+    groups: dict[str, list[Finding]] = {}
+    ungrouped: list[Finding] = []
+    for f in findings:
+        if f.group:
+            groups.setdefault(f.group, []).append(f)
+        else:
+            ungrouped.append(f)
 
-        if verbose:
-            if finding.file_path:
-                rel_path = finding.file_path
-                loc = f"{rel_path}:{finding.line_number}" if finding.line_number else rel_path
-                if use_color:
-                    print(f"      {COLORS['dim']}at {loc}{COLORS['reset']}")
-                else:
-                    print(f"      at {loc}")
+    for group_name, group_findings in groups.items():
+        sev_order = {"breaking": 0, "warning": 1, "info": 2}
+        max_sev = min(group_findings, key=lambda f: sev_order.get(f.severity, 2)).severity
+        label = group_name.replace("-", " ").title()
+        sev_str = format_severity(max_sev, use_color)
+        if not verbose:
+            print(f"    {sev_str} {label} ({len(group_findings)} issues)")
+            continue
+        print(f"    {sev_str} {label}:")
+        for finding in group_findings:
+            _print_finding(finding, use_color, verbose, indent=6)
 
-            if finding.line_text:
-                if use_color:
-                    print(f"      {COLORS['dim']}> {finding.line_text[:100]}{COLORS['reset']}")
-                else:
-                    print(f"      > {finding.line_text[:100]}")
-
-            if finding.suggestion:
-                if use_color:
-                    print(f"      {COLORS['dim']}fix: {finding.suggestion}{COLORS['reset']}")
-                else:
-                    print(f"      fix: {finding.suggestion}")
-
-            if finding.context:
-                if use_color:
-                    print(f"      {COLORS['dim']}note: {finding.context}{COLORS['reset']}")
-                else:
-                    print(f"      note: {finding.context}")
+    for finding in ungrouped:
+        _print_finding(finding, use_color, verbose, indent=4)
 
     print()
+
+
+def _print_finding(finding: Finding, use_color: bool, verbose: bool, indent: int = 4) -> None:
+    """Print a single finding."""
+    pad = " " * indent
+    severity = format_severity(finding.severity, use_color)
+    conf = ""
+    if finding.confidence and finding.confidence != "certain":
+        conf = f" ({finding.confidence})" if not use_color else f" {COLORS['dim']}({finding.confidence}){COLORS['reset']}"
+    print(f"{pad}{severity}{conf} {finding.message}")
+
+    if verbose:
+        sub = " " * (indent + 2)
+        if finding.file_path:
+            loc = f"{finding.file_path}:{finding.line_number}" if finding.line_number else finding.file_path
+            if use_color:
+                print(f"{sub}{COLORS['dim']}at {loc}{COLORS['reset']}")
+            else:
+                print(f"{sub}at {loc}")
+
+        if finding.line_text:
+            if use_color:
+                print(f"{sub}{COLORS['dim']}> {finding.line_text[:100]}{COLORS['reset']}")
+            else:
+                print(f"{sub}> {finding.line_text[:100]}")
+
+        if finding.suggestion:
+            if use_color:
+                print(f"{sub}{COLORS['dim']}fix: {finding.suggestion}{COLORS['reset']}")
+            else:
+                print(f"{sub}fix: {finding.suggestion}")
