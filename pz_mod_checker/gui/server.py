@@ -188,18 +188,15 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
 
     def _handle_version(self) -> None:
         from .. import __version__
-        from ..manager import read_mod_list
+        from ..manager import get_mod_status
         pz_version, session_date = self._get_console_info()
 
         active_mods = 0
         total_mods = 0
         try:
-            mod_list = read_mod_list()
-            active_mods = len(mod_list.mods)
-        except Exception:
-            pass
-        try:
-            total_mods = len(_cached_discover_mods())
+            statuses = get_mod_status()
+            total_mods = len(statuses)
+            active_mods = sum(1 for m in statuses if m["enabled"])
         except Exception:
             pass
 
