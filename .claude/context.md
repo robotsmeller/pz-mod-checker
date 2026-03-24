@@ -2,8 +2,10 @@
 
 ```yaml
 version: 0.2.0
-status: Feature complete, pre-distribution
+status: Feature complete, UX polish needed before distribution
 created: 2026-03-23
+session: 5
+last_updated: 2026-03-24
 
 arch:
   stack: Python 3.10+, CLI (argparse), JSON rules
@@ -19,30 +21,11 @@ identity:
 
 ## Session Notes
 
-### Session 1 (2026-03-23)
-- Initial project creation
-- Architecture: external Python CLI tool
-- Rule engine: YAML-based, version-keyed breaking change definitions
-- Supplement: no-comp.txt for known incompatible mod IDs
-- Scanner: full filesystem traversal of mod directories
-- Reporter: CLI table, JSON, HTML output formats
+### Session 4 (2026-03-24): Rule Quality + Engine + GUI Polish
+Rule quality: false positives 100% → 30% via condition system. 6 new rules, confidence/group fields, _make_finding helper. GUI: group-first rendering, SVG icons, disable/delete everywhere, workshop label precision, scan sort/filter. Closed 9 issues, created 4 new (#19-22).
 
-### Session 2 (2026-03-23)
-- Diagnose (console.txt parser), Manager (default.txt read/write)
-- Bisect (binary search for problem mods)
-- CLI subcommands: scan, diagnose, manage, bisect
-- Web GUI v1 at :8642
+### Session 3 (2026-03-24): GUI v2 + Workshop
+GUI v2: scope bar, accessibility, dev mode, pagination, workshop integration. Themed modals, toasts, inline user guide. 51 rules, 51 tests.
 
-### Session 3 (2026-03-24)
-- GUI v2: scope bar, tab descriptions, dev mode, pagination, accessibility
-- Workshop integration: Steam API queries, update checking, badges
-- Themed modals, toast notifications, inline user guide
-- 51 rules, 51 tests, full audit fixes
-
-### Session 4 (2026-03-24)
-- Rule quality: false positives 100% → 30% (condition system)
-- 6 new rules from Steam API + forum research (57 total)
-- Engine: _make_finding helper, confidence field, rule groups
-- GUI/CLI: group-first rendering, confidence badges, Morgan UI spec
-- 65 tests (14 new condition tests)
-- Closed 9 GitHub issues
+### Session 2 (2026-03-23): Core Features
+Diagnose, Manager, Bisect, CLI subcommands, Web GUI v1.
