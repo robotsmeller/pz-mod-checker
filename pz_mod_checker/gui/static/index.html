@@ -562,6 +562,7 @@ async function runScan() {
 let scanPage = 1;
 const SCAN_PAGE_SIZE = 25;
 let scanModFilter = '';
+let scanSort = 'severity';
 
 function renderScanResults(data) {
   const el = $('scan-results');
@@ -569,7 +570,9 @@ function renderScanResults(data) {
   const breakingModIds = [];
 
   for (const [modId, findings] of Object.entries(data.mods || {})) {
-    if (findings.some(f => f.severity === 'breaking')) breakingModIds.push(modId);
+    const hasBreaking = findings.some(f => f.severity === 'breaking');
+    const isPreB42 = workshopData[modId]?.reason === 'not_updated_since_b42';
+    if (hasBreaking || isPreB42) breakingModIds.push(modId);
   }
 
   // Toolbar: summary + filters + search
@@ -600,10 +603,18 @@ function renderScanResults(data) {
         <input id="scan-mod-filter" type="text" placeholder="Search mods by name or ID..."
                value="${esc(scanModFilter)}" oninput="scanModFilter=this.value; scanPage=1; renderScanResults(lastScanData)"
                class="bg-surface-3 border border-surface-4 rounded px-3 py-1.5 text-xs text-slate-100 w-56 focus:outline-none focus:border-pz-green">
+        <select onchange="scanSort=this.value; scanPage=1; renderScanResults(lastScanData)"
+                class="bg-surface-3 border border-surface-4 rounded px-3 py-1.5 text-xs text-slate-100 focus:outline-none focus:border-pz-green">
+          <option value="severity"${scanSort==='severity'?' selected':''}>Severity (worst first)</option>
+          <option value="az"${scanSort==='az'?' selected':''}>A &rarr; Z</option>
+          <option value="za"${scanSort==='za'?' selected':''}>Z &rarr; A</option>
+          <option value="findings"${scanSort==='findings'?' selected':''}>Most issues first</option>
+          <option value="workshop"${scanSort==='workshop'?' selected':''}>Workshop issues first</option>
+        </select>
         ${breakingModIds.length > 0 ? `
           <button data-action="disable-scan-breaking"
                   class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
-            Disable All ${breakingModIds.length} Breaking Mod${breakingModIds.length !== 1 ? 's' : ''}
+            Disable All ${breakingModIds.length} Problematic Mod${breakingModIds.length !== 1 ? 's' : ''}
           </button>` : ''}
         <button data-action="export-all" data-format="text" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All TXT</button>
         <button data-action="export-all" data-format="markdown" class="dev-only bg-surface-3 hover:bg-surface-4 text-slate-300 px-3 py-1.5 rounded text-xs transition-colors">Export All MD</button>
@@ -617,14 +628,25 @@ function renderScanResults(data) {
     return;
   }
 
-  // Sort mods: breaking first, then warning, then info
+  // Sort mods by selected order
   let mods = Object.entries(data.mods || {});
-  mods.sort((a, b) => {
-    const sevOrder = { breaking: 0, warning: 1, info: 2 };
-    const aMax = Math.min(...a[1].map(f => sevOrder[f.severity] ?? 3));
-    const bMax = Math.min(...b[1].map(f => sevOrder[f.severity] ?? 3));
-    return aMax - bMax;
-  });
+  const modName = ([id, fs]) => (fs[0]?.mod_name || id).toLowerCase();
+  const sevRank = ([id, fs]) => Math.min(...fs.map(f => ({breaking:0,warning:1,info:2}[f.severity] ?? 3)));
+  const wsRank = ([id]) => {
+    const ws = workshopData[id];
+    if (!ws) return 4;
+    if (ws.has_update) return 0;
+    if (ws.reason === 'not_updated_since_b42') return 1;
+    if (ws.reason === 'updated_post_b42') return 2;
+    return 3;
+  };
+  switch (scanSort) {
+    case 'severity': mods.sort((a, b) => sevRank(a) - sevRank(b) || modName(a).localeCompare(modName(b))); break;
+    case 'az': mods.sort((a, b) => modName(a).localeCompare(modName(b))); break;
+    case 'za': mods.sort((a, b) => modName(b).localeCompare(modName(a))); break;
+    case 'findings': mods.sort((a, b) => b[1].length - a[1].length || modName(a).localeCompare(modName(b))); break;
+    case 'workshop': mods.sort((a, b) => wsRank(a) - wsRank(b) || modName(a).localeCompare(modName(b))); break;
+  }
 
   // Apply severity + text filters
   mods = mods.filter(([modId, findings]) => {
@@ -827,10 +849,12 @@ async function disableScanBreaking() {
   if (!lastScanData) return;
   const ids = [];
   for (const [modId, findings] of Object.entries(lastScanData.mods || {})) {
-    if (findings.some(f => f.severity === 'breaking')) ids.push(modId);
+    const hasBreaking = findings.some(f => f.severity === 'breaking');
+    const isPreB42 = workshopData[modId]?.reason === 'not_updated_since_b42';
+    if (hasBreaking || isPreB42) ids.push(modId);
   }
   if (ids.length === 0) return;
-  if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking compatibility issues?`)) return;
+  if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking issues or pre-B42 Workshop status?`)) return;
   try {
     const data = await api('POST', '/api/mods/disable-scan-breaking', { mod_ids: ids });
     toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active. Re-scanning...`, 'success');
