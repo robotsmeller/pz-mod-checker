@@ -248,7 +248,7 @@
           <button onclick="refreshMods()"
                   class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-4 py-2 rounded text-sm transition-colors">Refresh</button>
           <button id="btn-check-updates" onclick="checkWorkshopUpdates()"
-                  class="bg-sky-700 hover:bg-sky-600 text-white px-4 py-2 rounded text-sm transition-colors">Check for Updates</button>
+                  class="bg-sky-700 hover:bg-sky-600 text-white px-4 py-2 rounded text-sm transition-colors">Check Workshop Status</button>
         </div>
         <div id="mod-count" class="text-xs text-slate-400 mb-3"></div>
         <div id="workshop-status" class="text-xs text-slate-500 mb-3 hidden"></div>
@@ -655,9 +655,9 @@ function renderScanResults(data) {
     const ws = workshopData[modId];
     const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
     const wsBadge = !ws ? '' :
-      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to open Workshop page">update on Workshop</a>` :
-      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">not updated for B42</a>` :
-      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">B42 OK</span>` : '';
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">newer version on Workshop</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — last updated before B42 release">pre-B42</a>` :
+      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">mentions B42</span>` : '';
     html += `
       <details class="card mb-2">
         <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
@@ -671,9 +671,9 @@ function renderScanResults(data) {
             ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc} wrn</span>` : ''}
             ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic} inf</span>` : ''}
             <button data-action="disable-mod" data-mod-id="${esc(modId)}"
-              class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>
+              class="ml-2 text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded text-sm transition-colors hover:bg-surface-3" title="Disable mod">&#x23F8;</button>
             <button data-action="delete-mod" data-mod-id="${esc(modId)}"
-              class="bg-red-950 hover:bg-red-900 text-red-300 px-2 py-0.5 rounded text-xs transition-colors border border-red-800">Delete</button>
+              class="text-red-500 hover:text-red-300 px-1.5 py-0.5 rounded text-sm transition-colors hover:bg-surface-3" title="Delete mod from disk">&#x1F5D1;</button>
           </div>
         </summary>
         <div class="px-4 pb-4 space-y-2">
@@ -957,9 +957,14 @@ async function disableMod(modId) {
   try {
     await api('POST', '/api/mods/disable', { mod_ids: [modId] });
     toast(`Disabled ${modId}`, 'success');
-    // Update local mod state
     const mod = allMods.find(m => m.mod_id === modId);
     if (mod) mod.enabled = false;
+    // Remove from scan results and re-render
+    if (lastScanData && lastScanData.mods && lastScanData.mods[modId]) {
+      delete lastScanData.mods[modId];
+      lastScanData.total_mods_with_issues = Object.keys(lastScanData.mods).length;
+      renderScanResults(lastScanData);
+    }
     refreshHeader();
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
@@ -1045,9 +1050,9 @@ async function runDiagnose() {
               <div class="flex gap-2 items-center">
                 <span class="text-xs text-red-400 font-medium">${count} error${count !== 1 ? 's' : ''}</span>
                 ${info.mod_id ? `<button data-action="disable-mod" data-mod-id="${esc(info.mod_id)}"
-                  class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>
+                  class="ml-2 text-red-400 hover:text-red-300 px-1.5 py-0.5 rounded text-sm transition-colors hover:bg-surface-3" title="Disable mod">&#x23F8;</button>
                   <button data-action="delete-mod" data-mod-id="${esc(info.mod_id)}"
-                  class="bg-red-950 hover:bg-red-900 text-red-300 px-2 py-0.5 rounded text-xs transition-colors border border-red-800">Delete</button>` : ''}
+                  class="text-red-500 hover:text-red-300 px-1.5 py-0.5 rounded text-sm transition-colors hover:bg-surface-3" title="Delete mod from disk">&#x1F5D1;</button>` : ''}
               </div>
             </summary>
             <div class="px-4 pb-4 space-y-2">
@@ -1152,7 +1157,7 @@ async function checkWorkshopUpdates() {
     toast('Workshop check failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
-    btn.textContent = 'Check for Updates';
+    btn.textContent = 'Check Workshop Status';
   }
 }
 
@@ -1183,10 +1188,10 @@ function renderMods(mods) {
     const ws = workshopData[m.mod_id];
     const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
     const badge = !ws ? '' :
-      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2 hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to open Workshop page">update available</a>` :
-      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">stale</a>` :
-      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">B42 OK</span>` :
-      ws.reason === 'updated_post_b42' ? `<span class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">updated</span>` : '';
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2 hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">newer version on Workshop</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — last updated before B42 release">pre-B42</a>` :
+      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">mentions B42</span>` :
+      ws.reason === 'updated_post_b42' ? `<span class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">updated post-B42</span>` : '';
     return `
     <div class="flex items-center justify-between bg-surface-1 rounded px-3 py-2 hover:bg-surface-3 transition-colors mod-row" data-id="${esc(m.mod_id)}">
       <div class="flex-1 min-w-0 mr-3">
