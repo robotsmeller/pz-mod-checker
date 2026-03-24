@@ -654,10 +654,10 @@ function renderScanResults(data) {
     const hasBreaking = bc > 0;
     const ws = workshopData[modId];
     const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
-    const wsBadge = !ws ? '' :
-      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">newer version on Workshop</a>` :
-      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — last updated before B42 release">pre-B42</a>` :
-      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded" title="${esc(ws.detail)}">mentions B42</span>` : '';
+    const wsBadge = !ws || !wsUrl ? '' :
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)}">newer version on Workshop</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)}">pre-B42</a>` :
+      ws.reason === 'claims_b42_support' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-800 transition-colors" title="${esc(ws.detail)}">mentions B42</a>` : '';
     html += `
       <details class="card mb-2">
         <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
@@ -1187,11 +1187,11 @@ function renderMods(mods) {
   el.innerHTML = mods.map(m => {
     const ws = workshopData[m.mod_id];
     const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
-    const badge = !ws ? '' :
-      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2 hover:bg-amber-800 transition-colors" title="${esc(ws.detail)} — click to check Workshop page">newer version on Workshop</a>` :
-      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)} — last updated before B42 release">pre-B42</a>` :
-      ws.reason === 'claims_b42_support' ? `<span class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">mentions B42</span>` :
-      ws.reason === 'updated_post_b42' ? `<span class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2" title="${esc(ws.detail)}">updated post-B42</span>` : '';
+    const badge = !ws || !wsUrl ? '' :
+      ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded ml-2 hover:bg-amber-800 transition-colors" title="${esc(ws.detail)}">newer version on Workshop</a>` :
+      ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)}">pre-B42</a>` :
+      ws.reason === 'claims_b42_support' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2 hover:bg-emerald-800 transition-colors" title="${esc(ws.detail)}">mentions B42</a>` :
+      ws.reason === 'updated_post_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2 hover:bg-surface-4 transition-colors" title="${esc(ws.detail)}">updated post-B42</a>` : '';
     return `
     <div class="flex items-center justify-between bg-surface-1 rounded px-3 py-2 hover:bg-surface-3 transition-colors mod-row" data-id="${esc(m.mod_id)}">
       <div class="flex-1 min-w-0 mr-3">
