@@ -12,6 +12,7 @@
         extend: {
           colors: {
             surface: { 1: '#0f172a', 2: '#1e293b', 3: '#334155', 4: '#475569' },
+            pz: { green: '#4ade80', dark: '#0c1a0c' },
           }
         }
       }
@@ -19,10 +20,10 @@
   </script>
   <style>
     body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
-    .spinner { border: 3px solid #475569; border-top-color: #38bdf8; border-radius: 50%;
+    .spinner { border: 3px solid #475569; border-top-color: #4ade80; border-radius: 50%;
                width: 20px; height: 20px; animation: spin 0.6s linear infinite; display: inline-block; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    .tab-btn.active { background: #334155; color: #f1f5f9; border-bottom: 2px solid #38bdf8; }
+    .tab-btn.active { background: #334155; color: #f1f5f9; border-bottom: 2px solid #4ade80; }
     .severity-breaking { background: #991b1b; color: #fecaca; }
     .severity-warning { background: #92400e; color: #fde68a; }
     .severity-info { background: #1e40af; color: #bfdbfe; }
@@ -38,19 +39,33 @@
                               transition: transform 0.2s; font-size: 0.7em; }
     details[open] summary::before { transform: rotate(90deg); }
     .card { background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; }
+    /* Toast */
+    #toast-container { position: fixed; top: 1rem; right: 1rem; z-index: 9999; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
+    .toast { padding: 0.75rem 1.25rem; border-radius: 0.5rem; font-size: 0.875rem; color: #f1f5f9;
+             opacity: 0; transform: translateX(100%); transition: all 0.3s ease; pointer-events: auto; max-width: 400px; }
+    .toast.show { opacity: 1; transform: translateX(0); }
+    .toast-success { background: #065f46; border: 1px solid #059669; }
+    .toast-error { background: #7f1d1d; border: 1px solid #991b1b; }
+    .toast-info { background: #1e3a5f; border: 1px solid #2563eb; }
+    /* Severity filter pills */
+    .sev-pill { cursor: pointer; opacity: 0.4; transition: opacity 0.2s; }
+    .sev-pill.active { opacity: 1; }
   </style>
 </head>
 <body class="bg-surface-1 text-slate-200 min-h-screen">
 
+  <!-- Toast container -->
+  <div id="toast-container"></div>
+
   <!-- Header -->
   <header class="bg-surface-2 border-b border-surface-3 px-6 py-4 flex items-center justify-between">
     <div class="flex items-center gap-3">
-      <h1 class="text-xl font-bold text-slate-100">PZ Mod Checker</h1>
+      <h1 class="text-xl font-bold text-pz-green">PZ Mod Checker</h1>
       <span id="app-version" class="text-xs bg-surface-3 text-slate-400 px-2 py-0.5 rounded">v...</span>
     </div>
     <div class="flex items-center gap-4 text-xs text-slate-400">
       <span>PZ <strong id="pz-version" class="text-slate-200">detecting...</strong></span>
-      <span><strong id="active-mod-count" class="text-slate-200">...</strong> mods active</span>
+      <span><strong id="active-mod-count" class="text-pz-green">...</strong> / <span id="total-mod-count">...</span> mods active</span>
       <span id="last-session" class="text-slate-500"></span>
     </div>
   </header>
@@ -72,16 +87,23 @@
         <div class="flex items-end gap-4">
           <div>
             <label class="block text-xs text-slate-400 mb-1">Target PZ Version</label>
-            <input id="scan-version" type="text" value="42.15.3"
-                   class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 w-40 focus:outline-none focus:border-sky-500">
+            <select id="scan-version"
+                    class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 w-40 focus:outline-none focus:border-pz-green">
+              <option value="42.15.3">42.15.3</option>
+            </select>
           </div>
           <button id="btn-scan" onclick="runScan()"
-                  class="bg-sky-600 hover:bg-sky-500 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
+                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
             Scan Mods
           </button>
         </div>
       </div>
-      <div id="scan-results"></div>
+      <div id="scan-results">
+        <div class="card p-8 text-center text-slate-500">
+          <svg class="w-10 h-10 mx-auto mb-3 opacity-30 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"/></svg>
+          <div class="text-sm" id="scan-empty-state">Press <strong class="text-pz-green">Scan Mods</strong> to check your mods for B42 compatibility issues.</div>
+        </div>
+      </div>
     </section>
 
     <!-- ==================== DIAGNOSE TAB ==================== -->
@@ -96,7 +118,12 @@
           Disable All Erroring Mods
         </button>
       </div>
-      <div id="diagnose-results"></div>
+      <div id="diagnose-results">
+        <div class="card p-8 text-center text-slate-500">
+          <svg class="w-10 h-10 mx-auto mb-3 opacity-30 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15a2.25 2.25 0 012.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25z"/></svg>
+          <div class="text-sm">Press <strong class="text-amber-400">Analyze Last Session</strong> to parse your console.txt for mod errors.</div>
+        </div>
+      </div>
     </section>
 
     <!-- ==================== MODS TAB ==================== -->
@@ -104,7 +131,7 @@
       <div class="card p-5 mb-4">
         <div class="flex items-center gap-4 mb-4">
           <input id="mod-search" type="text" placeholder="Search mods..."
-                 class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-sky-500"
+                 class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-pz-green"
                  oninput="filterMods()">
           <button onclick="bulkMods('enable')"
                   class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
@@ -122,9 +149,9 @@
         <h3 class="text-sm font-semibold text-slate-300 mb-3">Profiles</h3>
         <div class="flex items-center gap-3 mb-4">
           <input id="profile-name" type="text" placeholder="Profile name..."
-                 class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-sky-500">
+                 class="bg-surface-3 border border-surface-4 rounded px-3 py-2 text-sm text-slate-100 flex-1 focus:outline-none focus:border-pz-green">
           <button onclick="saveProfile()"
-                  class="bg-sky-600 hover:bg-sky-500 text-white px-4 py-2 rounded text-sm transition-colors">Save Current</button>
+                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Save Current</button>
         </div>
         <div id="profile-list" class="space-y-1"></div>
       </div>
@@ -135,7 +162,7 @@
       <div class="card p-5 mb-4">
         <div id="bisect-controls" class="flex items-center gap-3 flex-wrap">
           <button id="btn-bisect-start" onclick="bisectAction('start')"
-                  class="bg-sky-600 hover:bg-sky-500 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
+                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
             Start Bisect
           </button>
           <button id="btn-bisect-crash" onclick="bisectAction('crash')"
@@ -152,7 +179,25 @@
           </button>
         </div>
       </div>
-      <div id="bisect-status"></div>
+      <div id="bisect-status">
+        <div class="card p-5">
+          <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
+          <div class="space-y-3 text-sm text-slate-400">
+            <div class="flex gap-3 items-start">
+              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
+              <span>Click <strong class="text-slate-200">Start Bisect</strong> &mdash; the tool saves your mod list and enables half your mods.</span>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
+              <span><strong class="text-slate-200">Launch PZ</strong>, then come back and click <strong class="text-red-400">PZ Crashed</strong> or <strong class="text-emerald-400">PZ Loaded OK</strong>.</span>
+            </div>
+            <div class="flex gap-3 items-start">
+              <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
+              <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </section>
 
   </main>
@@ -162,6 +207,8 @@
    State
    ====================================================================== */
 let allMods = [];
+let lastScanData = null; // cache for "Disable All Breaking" on scan tab
+let activeSevFilters = new Set(['breaking', 'warning', 'info']);
 
 /* ======================================================================
    Helpers
@@ -173,7 +220,11 @@ async function api(method, path, body) {
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(path, opts);
-  return res.json();
+  const data = await res.json();
+  if (!res.ok && data.error) {
+    throw new Error(data.error);
+  }
+  return data;
 }
 
 function $(id) { return document.getElementById(id); }
@@ -192,7 +243,23 @@ function errorBox(msg) {
 
 function esc(s) {
   if (s == null) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+/* ======================================================================
+   Toast Notifications
+   ====================================================================== */
+function toast(message, type = 'info') {
+  const container = $('toast-container');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = message;
+  container.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 3500);
 }
 
 /* ======================================================================
@@ -224,71 +291,153 @@ async function runScan() {
   try {
     const ver = $('scan-version').value.trim() || '42.15.3';
     const data = await api('GET', `/api/scan?version=${encodeURIComponent(ver)}`);
+    lastScanData = data;
 
     if (data.total_mods === 0) {
       el.innerHTML = '<div class="card p-5 text-slate-400 text-sm">No mods found. Check your mod directories.</div>';
       return;
     }
 
-    const s = data.summary || {};
-    let html = `
-      <div class="card p-5 mb-4">
-        <div class="flex gap-6 text-sm">
-          <div><span class="text-slate-400">Mods scanned:</span> <span class="font-bold text-slate-100">${data.total_mods}</span></div>
-          <div><span class="text-slate-400">With issues:</span> <span class="font-bold text-slate-100">${data.total_mods_with_issues || 0}</span></div>
-          <div class="flex gap-3">
-            <span class="severity-breaking px-2 py-0.5 rounded text-xs">${s.breaking || 0} breaking</span>
-            <span class="severity-warning px-2 py-0.5 rounded text-xs">${s.warning || 0} warning</span>
-            <span class="severity-info px-2 py-0.5 rounded text-xs">${s.info || 0} info</span>
-          </div>
-        </div>
-      </div>`;
-
-    if (data.total_findings === 0) {
-      html += '<div class="card p-5 text-emerald-400 text-sm">All mods passed. No compatibility issues found.</div>';
-    } else {
-      const mods = data.mods || {};
-      for (const [modId, findings] of Object.entries(mods)) {
-        const modName = findings[0]?.mod_name || modId;
-        const bc = findings.filter(f => f.severity === 'breaking').length;
-        const wc = findings.filter(f => f.severity === 'warning').length;
-        const ic = findings.filter(f => f.severity === 'info').length;
-        html += `
-          <details class="card mb-2">
-            <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
-              <div class="flex items-center gap-3">
-                <span class="font-medium text-slate-100">${esc(modName)}</span>
-                <span class="text-xs text-slate-500">${esc(modId)}</span>
-              </div>
-              <div class="flex gap-2">
-                ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc}</span>` : ''}
-                ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc}</span>` : ''}
-                ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic}</span>` : ''}
-              </div>
-            </summary>
-            <div class="px-4 pb-4 space-y-2">
-              ${findings.map(f => `
-                <div class="bg-surface-1 rounded p-3 text-sm">
-                  <div class="flex items-start gap-2 mb-1">
-                    ${severityBadge(f.severity)}
-                    <span class="text-slate-200">${esc(f.message)}</span>
-                  </div>
-                  ${f.file_path ? `<div class="text-xs text-slate-500 ml-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
-                  ${f.line_text ? `<div class="text-xs text-slate-500 ml-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
-                  ${f.suggestion ? `<div class="text-xs text-sky-400 ml-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
-                  ${f.context ? `<div class="text-xs text-slate-500 ml-[52px] mt-1">${esc(f.context)}</div>` : ''}
-                </div>
-              `).join('')}
-            </div>
-          </details>`;
-      }
-    }
-    el.innerHTML = html;
+    renderScanResults(data);
   } catch (e) {
     el.innerHTML = errorBox('Scan failed: ' + e.message);
   } finally {
     btn.disabled = false;
     btn.textContent = 'Scan Mods';
+  }
+}
+
+function renderScanResults(data) {
+  const el = $('scan-results');
+  const s = data.summary || {};
+  const breakingModIds = [];
+
+  // Collect mod IDs with breaking findings
+  for (const [modId, findings] of Object.entries(data.mods || {})) {
+    if (findings.some(f => f.severity === 'breaking')) breakingModIds.push(modId);
+  }
+
+  let html = `
+    <div class="card p-5 mb-4">
+      <div class="flex items-center justify-between flex-wrap gap-4">
+        <div class="flex gap-6 text-sm">
+          <div><span class="text-slate-400">Mods scanned:</span> <span class="font-bold text-slate-100">${data.total_mods}</span></div>
+          <div><span class="text-slate-400">With issues:</span> <span class="font-bold text-slate-100">${data.total_mods_with_issues || 0}</span></div>
+        </div>
+        <div class="flex gap-2 items-center">
+          <span class="text-xs text-slate-500 mr-1">Filter:</span>
+          <span class="sev-pill severity-breaking px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('breaking') ? 'active' : ''}"
+                onclick="toggleSevFilter('breaking')">${s.breaking || 0} breaking</span>
+          <span class="sev-pill severity-warning px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('warning') ? 'active' : ''}"
+                onclick="toggleSevFilter('warning')">${s.warning || 0} warning</span>
+          <span class="sev-pill severity-info px-2 py-0.5 rounded text-xs cursor-pointer ${activeSevFilters.has('info') ? 'active' : ''}"
+                onclick="toggleSevFilter('info')">${s.info || 0} info</span>
+        </div>
+      </div>
+      ${breakingModIds.length > 0 ? `
+        <div class="mt-3 pt-3 border-t border-surface-3">
+          <button onclick="disableScanBreaking()"
+                  class="bg-red-700 hover:bg-red-600 text-white px-4 py-1.5 rounded text-xs font-medium transition-colors">
+            Disable All ${breakingModIds.length} Breaking Mod${breakingModIds.length !== 1 ? 's' : ''}
+          </button>
+        </div>
+      ` : ''}
+    </div>`;
+
+  if (data.total_findings === 0) {
+    html += '<div class="card p-5 text-emerald-400 text-sm">All mods passed. No compatibility issues found.</div>';
+  } else {
+    // Sort mods: breaking first, then warning, then info
+    const mods = Object.entries(data.mods || {});
+    mods.sort((a, b) => {
+      const sevOrder = { breaking: 0, warning: 1, info: 2 };
+      const aMax = Math.min(...a[1].map(f => sevOrder[f.severity] ?? 3));
+      const bMax = Math.min(...b[1].map(f => sevOrder[f.severity] ?? 3));
+      return aMax - bMax;
+    });
+
+    for (const [modId, findings] of mods) {
+      // Filter findings by active severity filters
+      const visible = findings.filter(f => activeSevFilters.has(f.severity));
+      if (visible.length === 0) continue;
+
+      const modName = findings[0]?.mod_name || modId;
+      const bc = findings.filter(f => f.severity === 'breaking').length;
+      const wc = findings.filter(f => f.severity === 'warning').length;
+      const ic = findings.filter(f => f.severity === 'info').length;
+      const hasBreaking = bc > 0;
+      html += `
+        <details class="card mb-2">
+          <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
+            <div class="flex items-center gap-3">
+              <span class="font-medium text-slate-100">${esc(modName)}</span>
+              <span class="text-xs text-slate-500">${esc(modId)}</span>
+            </div>
+            <div class="flex gap-2 items-center">
+              ${bc ? `<span class="severity-breaking px-2 py-0.5 rounded text-xs">${bc}</span>` : ''}
+              ${wc ? `<span class="severity-warning px-2 py-0.5 rounded text-xs">${wc}</span>` : ''}
+              ${ic ? `<span class="severity-info px-2 py-0.5 rounded text-xs">${ic}</span>` : ''}
+              ${hasBreaking ? `<button onclick="event.stopPropagation(); disableMod('${esc(modId)}')"
+                class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
+            </div>
+          </summary>
+          <div class="px-4 pb-4 space-y-2">
+            ${visible.map(f => `
+              <div class="bg-surface-1 rounded p-3 text-sm">
+                <div class="flex items-start gap-2 mb-1">
+                  ${severityBadge(f.severity)}
+                  <span class="text-slate-200">${esc(f.message)}</span>
+                </div>
+                ${f.file_path ? `<div class="text-xs text-slate-500 ml-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
+                ${f.line_text ? `<div class="text-xs text-slate-500 ml-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
+                ${f.suggestion ? `<div class="text-xs text-pz-green ml-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
+                ${f.context ? `<div class="text-xs text-slate-500 ml-[52px] mt-1">${esc(f.context)}</div>` : ''}
+              </div>
+            `).join('')}
+          </div>
+        </details>`;
+    }
+  }
+  el.innerHTML = html;
+}
+
+function toggleSevFilter(sev) {
+  if (activeSevFilters.has(sev)) {
+    if (activeSevFilters.size <= 1) return; // keep at least one
+    activeSevFilters.delete(sev);
+  } else {
+    activeSevFilters.add(sev);
+  }
+  if (lastScanData) renderScanResults(lastScanData);
+}
+
+async function disableScanBreaking() {
+  if (!lastScanData) return;
+  const ids = [];
+  for (const [modId, findings] of Object.entries(lastScanData.mods || {})) {
+    if (findings.some(f => f.severity === 'breaking')) ids.push(modId);
+  }
+  if (ids.length === 0) return;
+  if (!confirm(`Disable ${ids.length} mod(s) with breaking compatibility issues?`)) return;
+  try {
+    const data = await api('POST', '/api/mods/disable-scan-breaking', { mod_ids: ids });
+    toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active.`, 'success');
+    refreshHeader();
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
+  }
+}
+
+async function disableMod(modId) {
+  try {
+    await api('POST', '/api/mods/disable', { mod_ids: [modId] });
+    toast(`Disabled ${modId}`, 'success');
+    // Update local mod state
+    const mod = allMods.find(m => m.mod_id === modId);
+    if (mod) mod.enabled = false;
+    refreshHeader();
+  } catch (e) {
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -313,7 +462,6 @@ async function runDiagnose() {
 
     const errors = data.mod_errors || [];
     const reqFails = data.require_failures || [];
-    const countByMod = data.error_count_by_mod || {};
     const hasErrors = errors.length > 0;
 
     $('btn-disable-breaking').classList.toggle('hidden', !hasErrors);
@@ -332,7 +480,6 @@ async function runDiagnose() {
     if (!hasErrors) {
       html += '<div class="card p-5 text-emerald-400 text-sm">No mod errors found in last session.</div>';
     } else {
-      // Group errors by mod name
       const grouped = {};
       for (const err of errors) {
         const key = err.mod_name || '[Unknown]';
@@ -340,7 +487,6 @@ async function runDiagnose() {
         grouped[key].errors.push(err);
       }
 
-      // Sort by error count descending
       const sorted = Object.entries(grouped).sort((a, b) => b[1].errors.length - a[1].errors.length);
 
       for (const [modName, info] of sorted) {
@@ -353,7 +499,11 @@ async function runDiagnose() {
                 <span class="font-medium text-slate-100">${esc(modName)}</span>
                 ${info.mod_id ? `<span class="text-xs text-slate-500">${esc(info.mod_id)}</span>` : ''}
               </div>
-              <span class="text-xs text-red-400 font-medium">${count} error${count !== 1 ? 's' : ''}</span>
+              <div class="flex gap-2 items-center">
+                <span class="text-xs text-red-400 font-medium">${count} error${count !== 1 ? 's' : ''}</span>
+                ${info.mod_id ? `<button onclick="event.stopPropagation(); disableMod('${esc(info.mod_id)}')"
+                  class="ml-2 bg-red-800 hover:bg-red-700 text-red-200 px-2 py-0.5 rounded text-xs transition-colors">Disable</button>` : ''}
+              </div>
             </summary>
             <div class="px-4 pb-4 space-y-2">
               ${info.errors.map(e => `
@@ -373,7 +523,7 @@ async function runDiagnose() {
       }
     }
 
-    // Require failures
+    // Require failures with user-friendly explanation
     if (reqFails.length > 0) {
       const unique = [...new Set(reqFails.map(r => r.module_path))].sort();
       html += `
@@ -385,6 +535,13 @@ async function runDiagnose() {
             </div>
           </summary>
           <div class="px-4 pb-4">
+            <p class="text-sm text-slate-300 mb-3">
+              These mods tried to load Lua modules that don&#39;t exist. This usually means the mod uses features
+              removed or renamed in Build 42, or depends on another mod that isn&#39;t installed.
+            </p>
+            <p class="text-xs text-pz-green mb-3">
+              Fix: Check if each mod has a B42-compatible update on the Workshop. If not, disable it.
+            </p>
             <div class="bg-surface-1 rounded p-3 text-xs font-mono text-slate-400 space-y-0.5 max-h-48 overflow-y-auto">
               ${unique.map(m => `<div>${esc(m)}</div>`).join('')}
             </div>
@@ -408,12 +565,13 @@ async function disableBreaking() {
   btn.textContent = 'Disabling...';
   try {
     const data = await api('POST', '/api/mods/disable-breaking');
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { toast(data.error, 'error'); return; }
     const count = (data.disabled || []).length;
-    alert(`Disabled ${count} mod(s). ${data.total_active} mods still active.`);
+    toast(`Disabled ${count} mod(s). ${data.total_active} mods still active.`, 'success');
     btn.classList.add('hidden');
+    refreshHeader();
   } catch (e) {
-    alert('Failed: ' + e.message);
+    toast('Failed: ' + e.message, 'error');
   } finally {
     btn.disabled = false;
     btn.textContent = 'Disable All Erroring Mods';
@@ -471,12 +629,12 @@ async function toggleMod(modId, enable) {
   const endpoint = enable ? '/api/mods/enable' : '/api/mods/disable';
   try {
     await api('POST', endpoint, { mod_ids: [modId] });
-    // Update local state
     const mod = allMods.find(m => m.mod_id === modId);
     if (mod) mod.enabled = enable;
     filterMods();
+    refreshHeader();
   } catch (e) {
-    alert('Failed: ' + e.message);
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -489,8 +647,10 @@ async function bulkMods(action) {
     await api('POST', `/api/mods/${action}`, { mod_ids: ids });
     allMods.forEach(m => m.enabled = action === 'enable');
     filterMods();
+    refreshHeader();
+    toast(`${word}d all ${ids.length} mods.`, 'success');
   } catch (e) {
-    alert('Failed: ' + e.message);
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -523,13 +683,14 @@ async function refreshProfiles() {
 
 async function saveProfile() {
   const name = $('profile-name').value.trim();
-  if (!name) { alert('Enter a profile name.'); return; }
+  if (!name) { toast('Enter a profile name.', 'error'); return; }
   try {
     await api('POST', '/api/profile/save', { name });
     $('profile-name').value = '';
     refreshProfiles();
+    toast(`Profile "${name}" saved.`, 'success');
   } catch (e) {
-    alert('Failed: ' + e.message);
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -537,11 +698,12 @@ async function loadProfile(name) {
   if (!confirm(`Load profile "${name}"? This will overwrite your current mod list.`)) return;
   try {
     const data = await api('POST', '/api/profile/load', { name });
-    if (data.error) { alert(data.error); return; }
-    alert(`Profile "${name}" loaded. ${data.total_active} mods active.`);
+    if (data.error) { toast(data.error, 'error'); return; }
+    toast(`Profile "${name}" loaded. ${data.total_active} mods active.`, 'success');
     refreshMods();
+    refreshHeader();
   } catch (e) {
-    alert('Failed: ' + e.message);
+    toast('Failed: ' + e.message, 'error');
   }
 }
 
@@ -549,12 +711,11 @@ async function loadProfile(name) {
    BISECT
    ====================================================================== */
 async function refreshBisect() {
-  const el = $('bisect-status');
   try {
     const data = await api('GET', '/api/bisect/status');
-    renderBisectState(data);
+    if (data.active) renderBisectState(data);
   } catch (e) {
-    el.innerHTML = errorBox('Failed to load bisect status: ' + e.message);
+    // keep onboarding text if no active session
   }
 }
 
@@ -570,7 +731,24 @@ function renderBisectState(data) {
     btnCrash.classList.add('hidden');
     btnOk.classList.add('hidden');
     btnAbort.classList.add('hidden');
-    el.innerHTML = '<div class="card p-5 text-sm text-slate-400">No active bisect session. Start one to find which mod is crashing PZ.</div>';
+    el.innerHTML = `
+      <div class="card p-5">
+        <h3 class="text-sm font-semibold text-slate-300 mb-3">How Bisect Works</h3>
+        <div class="space-y-3 text-sm text-slate-400">
+          <div class="flex gap-3 items-start">
+            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">1</span>
+            <span>Click <strong class="text-slate-200">Start Bisect</strong> &mdash; the tool saves your mod list and enables half your mods.</span>
+          </div>
+          <div class="flex gap-3 items-start">
+            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">2</span>
+            <span><strong class="text-slate-200">Launch PZ</strong>, then come back and click <strong class="text-red-400">PZ Crashed</strong> or <strong class="text-emerald-400">PZ Loaded OK</strong>.</span>
+          </div>
+          <div class="flex gap-3 items-start">
+            <span class="bg-surface-3 text-pz-green font-bold rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 text-xs">3</span>
+            <span>Repeat until the <strong class="text-slate-200">culprit mod</strong> is found. Usually takes 7-8 rounds for 165 mods.</span>
+          </div>
+        </div>
+      </div>`;
     return;
   }
 
@@ -630,7 +808,7 @@ function renderBisectState(data) {
         <div><span class="text-slate-400">Known good:</span> <span class="text-emerald-400">${knownGood}</span></div>
       </div>
       <div class="w-full bg-surface-1 rounded-full h-3 mb-2">
-        <div class="bg-sky-500 h-3 rounded-full transition-all" style="width: ${pct}%"></div>
+        <div class="bg-pz-green h-3 rounded-full transition-all" style="width: ${pct}%"></div>
       </div>
       <p class="text-xs text-slate-500">Launch PZ now, then click "PZ Crashed" or "PZ Loaded OK".</p>
     </div>`;
@@ -658,6 +836,7 @@ async function bisectAction(action) {
     }
     if (action === 'abort') {
       renderBisectState({ active: false });
+      toast('Bisect aborted. Mod list restored.', 'info');
       return;
     }
     renderBisectState({ active: true, ...data });
@@ -667,21 +846,60 @@ async function bisectAction(action) {
 }
 
 /* ======================================================================
+   Header Refresh
+   ====================================================================== */
+async function refreshHeader() {
+  try {
+    const data = await api('GET', '/api/version');
+    $('active-mod-count').textContent = data.active_mods ?? '?';
+    $('total-mod-count').textContent = data.total_mods ?? '?';
+  } catch (e) { /* ignore */ }
+}
+
+/* ======================================================================
    Init
    ====================================================================== */
 (async function init() {
   try {
-    const data = await api('GET', '/api/version');
-    $('app-version').textContent = 'v' + (data.tool_version || '?');
-    $('pz-version').textContent = data.pz_version || 'not detected';
-    $('active-mod-count').textContent = data.active_mods ?? '?';
-    if (data.last_session) {
-      $('last-session').textContent = 'Last session: ' + data.last_session;
+    // Load version info and available versions in parallel
+    const [vData, versionsData] = await Promise.all([
+      api('GET', '/api/version'),
+      api('GET', '/api/versions'),
+    ]);
+
+    $('app-version').textContent = 'v' + (vData.tool_version || '?');
+    $('pz-version').textContent = vData.pz_version || 'not detected';
+    $('active-mod-count').textContent = vData.active_mods ?? '?';
+    $('total-mod-count').textContent = vData.total_mods ?? '?';
+    if (vData.last_session) {
+      $('last-session').textContent = 'Last session: ' + vData.last_session;
     }
-    // Auto-fill scan version field with detected PZ version
-    const scanInput = document.getElementById('scan-version');
-    if (scanInput && data.pz_version && data.pz_version !== 'unknown') {
-      scanInput.value = data.pz_version;
+
+    // Update empty state with mod count
+    const emptyState = $('scan-empty-state');
+    if (emptyState && vData.total_mods > 0) {
+      emptyState.innerHTML = `Press <strong class="text-pz-green">Scan Mods</strong> to check your ${vData.total_mods} mods for B42 compatibility issues.`;
+    }
+
+    // Populate version dropdown
+    const sel = $('scan-version');
+    const versions = versionsData.versions || [];
+    if (versions.length > 0) {
+      sel.innerHTML = '';
+      // Add versions in reverse order (newest first)
+      for (const v of [...versions].reverse()) {
+        const opt = document.createElement('option');
+        opt.value = v;
+        opt.textContent = v;
+        sel.appendChild(opt);
+      }
+      // Pre-select detected PZ version, or default to latest
+      if (vData.pz_version && vData.pz_version !== 'unknown') {
+        // Find closest match
+        const detected = vData.pz_version;
+        const match = versions.find(v => detected.startsWith(v));
+        if (match) sel.value = match;
+      }
     }
   } catch (e) { /* ignore */ }
 })();

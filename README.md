@@ -37,22 +37,12 @@ pz-mod-checker --gui
 
 Opens `http://localhost:8642` with a full dashboard featuring:
 
-- **Scan** — Run scans, browse results by mod, filter by severity
-- **Diagnose** — One-click crash log analysis, disable erroring mods
-- **Mods** — Toggle mods on/off, manage profiles, search/filter
-- **Bisect** — Visual binary search walkthrough with progress tracking
+- **Scan** — Version dropdown (auto-populated from rule files, auto-detects your PZ version), severity filter toggles, results sorted by severity, inline "Disable" buttons on breaking mods, "Disable All Breaking" bulk action
+- **Diagnose** — One-click crash log analysis, plain-language explanations for `require()` failures with fix suggestions, inline "Disable" per-mod, bulk disable all erroring mods
+- **Mods** — Toggle mods on/off, manage profiles, search/filter, header shows active/total mod counts
+- **Bisect** — Step-by-step onboarding guide, visual binary search with progress bar
 
-All actions available in the GUI call the same API endpoints, which can also be used by other tools:
-
-```
-GET  /api/scan?version=42.15.3    # Scan results as JSON
-GET  /api/diagnose                 # Last session diagnosis
-GET  /api/mods                     # Mod list with status
-POST /api/mods/enable              # Enable mods
-POST /api/mods/disable             # Disable mods
-POST /api/bisect/start             # Begin bisect
-GET  /api/profiles                 # List profiles
-```
+Toast notifications replace modal alerts. The server uses threading to prevent UI freezes during scans.
 
 ---
 
@@ -228,6 +218,7 @@ When running the web GUI (`--gui`), all endpoints are available at `http://local
 | POST | `/api/mods/enable` | Enable mods `{"mod_ids": [...]}` |
 | POST | `/api/mods/disable` | Disable mods `{"mod_ids": [...]}` |
 | POST | `/api/mods/disable-breaking` | Disable mods that caused errors |
+| POST | `/api/mods/disable-scan-breaking` | Disable mods with breaking scan findings `{"mod_ids": [...]}` |
 | GET | `/api/profiles` | List saved profiles |
 | POST | `/api/profile/save` | Save current mod list `{"name": "..."}` |
 | POST | `/api/profile/load` | Load a profile `{"name": "..."}` |
@@ -236,7 +227,8 @@ When running the web GUI (`--gui`), all endpoints are available at `http://local
 | POST | `/api/bisect/crash` | Report PZ crashed |
 | POST | `/api/bisect/ok` | Report PZ loaded OK |
 | POST | `/api/bisect/abort` | Abort bisect, restore backup |
-| GET | `/api/version` | Tool version |
+| GET | `/api/version` | Tool version, PZ version, mod counts |
+| GET | `/api/versions` | Available PZ versions from rule files |
 
 All endpoints return JSON. Any program that can make HTTP requests can use the API.
 

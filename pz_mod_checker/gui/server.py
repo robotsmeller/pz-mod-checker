@@ -4,28 +4,37 @@ from __future__ import annotations
 
 import json
 import sys
+import traceback
 import webbrowser
 from dataclasses import asdict
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from pathlib import Path
+from socketserver import ThreadingMixIn
 from threading import Timer
 from urllib.parse import urlparse, parse_qs
 
 _STATIC_DIR = Path(__file__).parent / "static"
 _PORT = 8642
+_MAX_BODY = 1_048_576  # 1 MB
+
+
+def _get_data_dir() -> Path:
+    return Path(__file__).resolve().parent.parent.parent / "data"
+
+
+class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
+    daemon_threads = True
 
 
 class PZModCheckerHandler(BaseHTTPRequestHandler):
     """HTTP request handler for the PZ Mod Checker GUI."""
 
     def log_message(self, format, *args):
-        """Suppress default logging to stderr."""
         pass
 
     def _send_json(self, data: dict | list, status: int = 200) -> None:
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
         self.wfile.write(json.dumps(data, indent=2, default=str).encode("utf-8"))
 
@@ -52,6 +61,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         length = int(self.headers.get("Content-Length", 0))
         if length == 0:
             return {}
+        if length > _MAX_BODY:
+            return {}
         body = self.rfile.read(length)
         try:
             return json.loads(body)
@@ -63,59 +74,60 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         path = parsed.path
         params = parse_qs(parsed.query)
 
-        # Static files
         if path == "/" or path == "/index.html":
             self._send_static(_STATIC_DIR / "index.html")
             return
 
-        # API endpoints
-        if path == "/api/scan":
-            self._handle_scan(params)
-        elif path == "/api/diagnose":
-            self._handle_diagnose()
-        elif path == "/api/mods":
-            self._handle_mods()
-        elif path == "/api/profiles":
-            self._handle_profiles()
-        elif path == "/api/bisect/status":
-            self._handle_bisect_status()
-        elif path == "/api/version":
-            self._handle_version()
-        else:
-            self.send_error(404)
+        try:
+            if path == "/api/scan":
+                self._handle_scan(params)
+            elif path == "/api/diagnose":
+                self._handle_diagnose()
+            elif path == "/api/mods":
+                self._handle_mods()
+            elif path == "/api/profiles":
+                self._handle_profiles()
+            elif path == "/api/bisect/status":
+                self._handle_bisect_status()
+            elif path == "/api/version":
+                self._handle_version()
+            elif path == "/api/versions":
+                self._handle_versions()
+            else:
+                self.send_error(404)
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
         path = parsed.path
         body = self._read_body()
 
-        if path == "/api/mods/enable":
-            self._handle_mods_enable(body)
-        elif path == "/api/mods/disable":
-            self._handle_mods_disable(body)
-        elif path == "/api/mods/disable-breaking":
-            self._handle_disable_breaking()
-        elif path == "/api/profile/save":
-            self._handle_profile_save(body)
-        elif path == "/api/profile/load":
-            self._handle_profile_load(body)
-        elif path == "/api/bisect/start":
-            self._handle_bisect_start()
-        elif path == "/api/bisect/crash":
-            self._handle_bisect_crash()
-        elif path == "/api/bisect/ok":
-            self._handle_bisect_ok()
-        elif path == "/api/bisect/abort":
-            self._handle_bisect_abort()
-        else:
-            self.send_error(404)
-
-    def do_OPTIONS(self) -> None:
-        self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+        try:
+            if path == "/api/mods/enable":
+                self._handle_mods_enable(body)
+            elif path == "/api/mods/disable":
+                self._handle_mods_disable(body)
+            elif path == "/api/mods/disable-breaking":
+                self._handle_disable_breaking()
+            elif path == "/api/mods/disable-scan-breaking":
+                self._handle_disable_scan_breaking(body)
+            elif path == "/api/profile/save":
+                self._handle_profile_save(body)
+            elif path == "/api/profile/load":
+                self._handle_profile_load(body)
+            elif path == "/api/bisect/start":
+                self._handle_bisect_start()
+            elif path == "/api/bisect/crash":
+                self._handle_bisect_crash()
+            elif path == "/api/bisect/ok":
+                self._handle_bisect_ok()
+            elif path == "/api/bisect/abort":
+                self._handle_bisect_abort()
+            else:
+                self.send_error(404)
+        except Exception as e:
+            self._send_json({"error": str(e)}, 500)
 
     # --- API Handlers ---
 
@@ -123,8 +135,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         from .. import __version__
         from ..diagnose import get_console_log, parse_console_log
         from ..manager import read_mod_list
+        from ..scanner.discovery import discover_mods
 
-        # Detect installed PZ version from last session log
         pz_version = "unknown"
         session_date = ""
         try:
@@ -136,19 +148,36 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         except Exception:
             pass
 
-        # Count active mods
+        active_mods = 0
         try:
             mod_list = read_mod_list()
             active_mods = len(mod_list.mods)
         except Exception:
-            active_mods = 0
+            pass
+
+        total_mods = 0
+        try:
+            total_mods = len(discover_mods())
+        except Exception:
+            pass
 
         self._send_json({
             "tool_version": __version__,
             "pz_version": pz_version,
             "last_session": session_date,
             "active_mods": active_mods,
+            "total_mods": total_mods,
         })
+
+    def _handle_versions(self) -> None:
+        """Return available PZ versions from rule files."""
+        rules_dir = _get_data_dir() / "rules"
+        versions = []
+        if rules_dir.is_dir():
+            for f in sorted(rules_dir.glob("*.json")):
+                v = f.stem  # e.g. "42.15.0"
+                versions.append(v)
+        self._send_json({"versions": versions})
 
     def _handle_scan(self, params: dict) -> None:
         from ..rules.engine import check_all_mods
@@ -159,8 +188,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         version = params.get("version", ["42.15.3"])[0]
         target = PZVersion.parse(version)
 
-        data_dir = Path(__file__).resolve().parent.parent.parent / "data"
-        ruleset = load_ruleset(data_dir)
+        ruleset = load_ruleset(_get_data_dir())
         mods = discover_mods()
 
         if not mods:
@@ -258,6 +286,16 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         mod_list = disable_mods(to_disable)
         self._send_json({"total_active": len(mod_list.mods), "disabled": to_disable})
 
+    def _handle_disable_scan_breaking(self, body: dict) -> None:
+        """Disable mods with breaking scan findings."""
+        from ..manager import disable_mods
+        mod_ids = body.get("mod_ids", [])
+        if not mod_ids:
+            self._send_json({"error": "mod_ids required"}, 400)
+            return
+        mod_list = disable_mods(mod_ids)
+        self._send_json({"total_active": len(mod_list.mods), "disabled": mod_ids})
+
     def _handle_profiles(self) -> None:
         from ..manager import list_profiles
         profiles = list_profiles()
@@ -329,7 +367,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
 
 def start_server(port: int = _PORT, open_browser: bool = True) -> None:
     """Start the GUI server."""
-    server = HTTPServer(("127.0.0.1", port), PZModCheckerHandler)
+    server = ThreadingHTTPServer(("127.0.0.1", port), PZModCheckerHandler)
     url = f"http://localhost:{port}"
     print(f"PZ Mod Checker GUI running at {url}")
     print("Press Ctrl+C to stop.")
