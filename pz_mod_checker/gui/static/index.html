@@ -768,8 +768,9 @@ async function disableScanBreaking() {
   if (!await confirmModal(`Disable ${ids.length} mod(s) with breaking compatibility issues?`)) return;
   try {
     const data = await api('POST', '/api/mods/disable-scan-breaking', { mod_ids: ids });
-    toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active.`, 'success');
+    toast(`Disabled ${(data.disabled || []).length} mod(s). ${data.total_active} mods still active. Re-scanning...`, 'success');
     refreshHeader();
+    runScan();
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
   }
