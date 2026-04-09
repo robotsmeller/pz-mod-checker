@@ -18,15 +18,15 @@
     {
       "id": "b42-12-firepower-renamed",
       "type": "api_rename",
-      "severity": "breaking",
+      "severity": "warning",
       "confidence": "certain",
       "since": "42.12.0",
-      "description": "FirePower script property renamed to FireStartingEnergy/FireStartingChance",
+      "description": "FirePower script property renamed to FireStartingEnergy — fire-starting capability on items/weapons will be silently ignored",
       "old_pattern": "FirePower",
-      "new_name": "FireStartingEnergy or FireStartingChance",
+      "new_name": "FireStartingEnergy",
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Script property renamed in 42.12 for clarity"
+      "context": "Script property renamed in 42.12; the weapon/item still works but its fire-starting effect does nothing until updated"
     },
     {
       "id": "b42-12-metalworking-renamed",

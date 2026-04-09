@@ -1,0 +1,85 @@
+{
+  "version": "42.16.0",
+  "summary": "Occupation/trait renames, sandbox option type change, distribution weightChance fix, security-restricted Lua filesystem access",
+  "source": "https://store.steampowered.com/news/app/108600/view/533253197651772556",
+  "release_date": "2026-03-31",
+  "changes": [
+    {
+      "id": "b42-16-occupation-fire-officer",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.16.0",
+      "description": "Occupation 'Fire Officer' renamed to 'Firefighter' — update profession string comparisons",
+      "old_pattern": "Fire Officer|FireOfficer",
+      "regex": true,
+      "new_name": "Firefighter",
+      "scan": "*.lua",
+      "context": "Occupation renamed in 42.16; mods checking getProfession() against this string will not match",
+      "group": "occupation-renames"
+    },
+    {
+      "id": "b42-16-occupation-angler",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.16.0",
+      "description": "Occupation 'Angler' renamed to 'Fishing Guide' — update profession string comparisons",
+      "old_pattern": "\"Angler\"",
+      "new_name": "FishingGuide",
+      "scan": "*.lua",
+      "context": "Occupation renamed in 42.16; mods checking getProfession() against \"Angler\" will not match",
+      "group": "occupation-renames"
+    },
+    {
+      "id": "b42-16-trait-wilderness-knowledge",
+      "type": "api_rename",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.16.0",
+      "description": "Trait 'Wilderness Knowledge' renamed to 'Bushcrafter' — update trait ID references",
+      "old_pattern": "WildernessKnowledge|Wilderness Knowledge",
+      "regex": true,
+      "new_name": "Bushcrafter",
+      "scan": "*.lua",
+      "context": "Trait renamed in 42.16; hasTrait/addTrait calls using the old ID will silently fail",
+      "group": "occupation-renames"
+    },
+    {
+      "id": "b42-16-sandbox-firearms-damage-type",
+      "type": "api_signature",
+      "severity": "warning",
+      "confidence": "likely",
+      "since": "42.16.0",
+      "description": "'Firearms use damage chance' sandbox option changed from boolean to dropdown integer — boolean comparisons will break",
+      "pattern": "FirearmsUseDamageChance",
+      "scan": "*.lua",
+      "context": "SandboxVars.FirearmsUseDamageChance is now an integer (0/1/2), not true/false; if-truthy checks still work but == true/== false will not"
+    },
+    {
+      "id": "b42-16-distribution-proclists-weightchance",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "speculative",
+      "since": "42.16.0",
+      "description": "Distribution procLists entries without explicit weightChance now spawn nothing — previously used implicit equal weighting",
+      "pattern": "procLists",
+      "scan": "*.lua",
+      "replacement": "Add explicit weightChance to every entry in each procLists table",
+      "context": "42.16 fixed procLists multi-entry behavior; mods defining loot tables without weightChance were silently broken and now spawn nothing at all"
+    },
+    {
+      "id": "b42-16-lua-filesystem-security",
+      "type": "deprecated",
+      "severity": "warning",
+      "confidence": "speculative",
+      "since": "42.16.3",
+      "description": "Lua filesystem access restricted by 42.16.3 security patch — io/os file operations may be blocked or silently fail",
+      "pattern": "\\bio\\.open\\b|\\bos\\.execute\\b|\\bos\\.remove\\b|\\bos\\.rename\\b",
+      "regex": true,
+      "scan": "*.lua",
+      "replacement": "Use PZ built-in file APIs instead of raw Lua io/os calls",
+      "context": "April 2026 security patch (42.16.3) restricted Lua filesystem access following a malicious mod incident affecting 500-2200 users; exact API restrictions not published"
+    }
+  ]
+}

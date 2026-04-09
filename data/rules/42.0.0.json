@@ -139,26 +139,14 @@
       "id": "b42-old-item-type-food",
       "type": "script_syntax",
       "severity": "warning",
-      "confidence": "speculative",
+      "confidence": "likely",
       "since": "42.0.0",
-      "description": "Food item Type may have changed format in B42",
+      "description": "B42 replaced 'Type = Food' with 'ItemType = base:food' — old syntax may still load but is not guaranteed",
       "pattern": "Type\\s*=\\s*Food",
       "regex": true,
       "scan": "*.txt",
       "path": "media/scripts/",
-      "context": "Item definitions changed significantly in B42"
-    },
-    {
-      "id": "b42-getspecificplayer",
-      "type": "api_rename",
-      "severity": "info",
-      "confidence": "speculative",
-      "since": "42.0.0",
-      "description": "getSpecificPlayer may behave differently in B42 multiplayer",
-      "old_pattern": "getSpecificPlayer",
-      "new_name": "getPlayerByIndex (verify for B42)",
-      "scan": "*.lua",
-      "context": "Player indexing changed in B42"
+      "context": "B42 game scripts use 'ItemType = base:food' and 'DisplayCategory = Food' — vanilla no longer uses 'Type = Food'"
     },
     {
       "id": "b42-luamanager-globalobject",

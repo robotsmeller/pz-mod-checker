@@ -374,6 +374,162 @@ def test_condition_empty_dict():
         assert len(findings) == 1  # empty condition → apply
 
 
+# --- 42.16.0 rule tests ---
+
+def test_b42_16_fire_officer_rename():
+    """Mods referencing 'Fire Officer' or 'FireOfficer' should be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content='if player:getProfession() == "FireOfficer" then')
+        rule = Rule(
+            id="b42-16-occupation-fire-officer",
+            type="api_rename",
+            severity="warning",
+            since="42.16.0",
+            description="Occupation 'Fire Officer' renamed to 'Firefighter'",
+            old_pattern="Fire Officer|FireOfficer",
+            regex=True,
+            new_name="Firefighter",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+        assert findings[0].rule_id == "b42-16-occupation-fire-officer"
+
+
+def test_b42_16_fire_officer_rename_display_name():
+    """Display name string 'Fire Officer' should also be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content='local name = "Fire Officer"')
+        rule = Rule(
+            id="b42-16-occupation-fire-officer",
+            type="api_rename",
+            severity="warning",
+            since="42.16.0",
+            description="Occupation 'Fire Officer' renamed to 'Firefighter'",
+            old_pattern="Fire Officer|FireOfficer",
+            regex=True,
+            new_name="Firefighter",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+
+
+def test_b42_16_angler_rename():
+    """Mods referencing the 'Angler' occupation by quoted name should be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content='if getProfession() == "Angler" then')
+        rule = Rule(
+            id="b42-16-occupation-angler",
+            type="api_rename",
+            severity="warning",
+            since="42.16.0",
+            description="Occupation 'Angler' renamed to 'Fishing Guide'",
+            old_pattern='"Angler"',
+            new_name="FishingGuide",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+        assert findings[0].rule_id == "b42-16-occupation-angler"
+
+
+def test_b42_16_angler_rename_no_false_positive():
+    """Unquoted 'Angler' (e.g. fishing variable name) should not trigger."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="local anglerSkill = player:getLevel()")
+        rule = Rule(
+            id="b42-16-occupation-angler",
+            type="api_rename",
+            severity="warning",
+            since="42.16.0",
+            description="Occupation 'Angler' renamed to 'Fishing Guide'",
+            old_pattern='"Angler"',
+            new_name="FishingGuide",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 0
+
+
+def test_b42_16_trait_wilderness_knowledge():
+    """Mods referencing WildernessKnowledge trait ID should be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content='player:getTraits():contains("WildernessKnowledge")')
+        rule = Rule(
+            id="b42-16-trait-wilderness-knowledge",
+            type="api_rename",
+            severity="warning",
+            since="42.16.0",
+            description="Trait 'Wilderness Knowledge' renamed to 'Bushcrafter'",
+            old_pattern="WildernessKnowledge|Wilderness Knowledge",
+            regex=True,
+            new_name="Bushcrafter",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+        assert findings[0].rule_id == "b42-16-trait-wilderness-knowledge"
+
+
+def test_b42_16_sandbox_firearms_damage_type():
+    """Mods reading FirearmsUseDamageChance sandbox option should be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="if SandboxVars.FirearmsUseDamageChance == true then")
+        rule = Rule(
+            id="b42-16-sandbox-firearms-damage-type",
+            type="api_signature",
+            severity="warning",
+            since="42.16.0",
+            description="FirearmsUseDamageChance changed from boolean to integer",
+            pattern="FirearmsUseDamageChance",
+            scan="*.lua",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+
+
+def test_b42_16_proclists_warning():
+    """Mods using procLists in distribution tables should be flagged."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="table.procLists = { {item='Axe'}, {item='Knife'} }")
+        rule = Rule(
+            id="b42-16-distribution-proclists-weightchance",
+            type="deprecated",
+            severity="warning",
+            since="42.16.0",
+            description="procLists entries without weightChance now spawn nothing",
+            pattern="procLists",
+            scan="*.lua",
+            replacement="Add explicit weightChance",
+        )
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.0"))
+        assert len(findings) == 1
+
+
+def test_b42_16_lua_filesystem_security():
+    """Mods using io.open or os.execute should be flagged on 42.16.3+."""
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="local f = io.open('data.txt', 'r')")
+        rule = Rule(
+            id="b42-16-lua-filesystem-security",
+            type="deprecated",
+            severity="warning",
+            since="42.16.3",
+            description="Lua filesystem access restricted by security patch",
+            pattern=r"\bio\.open\b|\bos\.execute\b|\bos\.remove\b|\bos\.rename\b",
+            regex=True,
+            scan="*.lua",
+            replacement="Use PZ built-in file APIs",
+        )
+        # Should trigger on 42.16.3
+        findings = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.3"))
+        assert len(findings) == 1
+        # Should NOT trigger on 42.16.2 (rule not yet active)
+        findings_before = check_mod(mod, RuleSet(rules=[rule]), PZVersion.parse("42.16.2"))
+        assert len(findings_before) == 0
+
+
 if __name__ == "__main__":
     test_load_rules()
     test_load_no_comp()
