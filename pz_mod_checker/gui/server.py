@@ -46,6 +46,57 @@ def _cached_discover_mods() -> list:
     return _mod_cache["mods"]
 
 
+# Cache for mod status (discovery + active list combined)
+_status_cache: dict = {"mtime": 0.0, "statuses": []}
+
+
+def _cached_mod_status() -> list[dict]:
+    """Return mod statuses, cached with mtime-based invalidation.
+
+    Uses _cached_discover_mods() for discovery and reads default.txt for
+    enabled/disabled status. Invalidates when mod dirs or default.txt change.
+    """
+    from ..manager import get_default_txt_path, read_mod_list
+
+    # Check mtime of default.txt (active list changes)
+    txt_mtime = 0.0
+    try:
+        txt_path = get_default_txt_path()
+        if txt_path.is_file():
+            txt_mtime = txt_path.stat().st_mtime
+    except OSError:
+        pass
+
+    mods = _cached_discover_mods()
+    combined_mtime = _mod_cache["mtime"] + txt_mtime
+
+    if combined_mtime != _status_cache["mtime"] or not _status_cache["statuses"]:
+        try:
+            mod_list = read_mod_list(get_default_txt_path())
+            enabled_ids = set(mod_list.mods)
+        except Exception:
+            enabled_ids = set()
+
+        _status_cache["statuses"] = [
+            {
+                "mod_id": m.mod_id,
+                "name": m.name,
+                "enabled": m.mod_id in enabled_ids,
+                "path": str(m.path),
+            }
+            for m in mods
+        ]
+        _status_cache["mtime"] = combined_mtime
+
+    return _status_cache["statuses"]
+
+
+def _invalidate_status_cache() -> None:
+    """Force status cache to refresh on next access."""
+    _status_cache["mtime"] = 0.0
+    _status_cache["statuses"] = []
+
+
 class ThreadingHTTPServer(ThreadingMixIn, HTTPServer):
     daemon_threads = True
 
@@ -188,17 +239,11 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
 
     def _handle_version(self) -> None:
         from .. import __version__
-        from ..manager import get_mod_status
         pz_version, session_date = self._get_console_info()
 
-        active_mods = 0
-        total_mods = 0
-        try:
-            statuses = get_mod_status()
-            total_mods = len(statuses)
-            active_mods = sum(1 for m in statuses if m["enabled"])
-        except Exception:
-            pass
+        statuses = _cached_mod_status()
+        total_mods = len(statuses)
+        active_mods = sum(1 for m in statuses if m["enabled"])
 
         self._send_json({
             "tool_version": __version__,
@@ -286,15 +331,16 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         ruleset = load_ruleset(_get_data_dir())
         all_mods = _cached_discover_mods()
 
+        # Get active mod IDs (used for scope filtering and status display)
+        try:
+            active_ids = set(read_mod_list().mods)
+        except Exception:
+            active_ids = set()
+
         if scope == "all":
             mods = all_mods
         elif scope == "active":
-            try:
-                mod_list = read_mod_list()
-                active_ids = set(mod_list.mods)
-                mods = [m for m in all_mods if m.mod_id in active_ids]
-            except Exception:
-                mods = all_mods
+            mods = [m for m in all_mods if m.mod_id in active_ids] if active_ids else all_mods
         else:
             # Scope is a profile name
             try:
@@ -330,6 +376,10 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 mod_id: [asdict(f) for f in findings]
                 for mod_id, findings in sorted(results.items())
             },
+            "mod_status": {
+                mod_id: mod_id in active_ids
+                for mod_id in results
+            },
         }
         self._send_json(output)
 
@@ -352,8 +402,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         self._send_json(asdict(diagnosis))
 
     def _handle_mods(self) -> None:
-        from ..manager import get_mod_status
-        statuses = get_mod_status()
+        statuses = _cached_mod_status()
         self._send_json({"mods": statuses})
 
     def _handle_mods_enable(self, body: dict) -> None:
@@ -363,6 +412,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "mod_ids required"}, 400)
             return
         mod_list = enable_mods(mod_ids)
+        _invalidate_status_cache()
         self._send_json({"total_active": len(mod_list.mods), "enabled": mod_ids})
 
     def _handle_mods_disable(self, body: dict) -> None:
@@ -372,6 +422,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "mod_ids required"}, 400)
             return
         mod_list = disable_mods(mod_ids)
+        _invalidate_status_cache()
         self._send_json({"total_active": len(mod_list.mods), "disabled": mod_ids})
 
     def _handle_disable_breaking(self) -> None:
@@ -398,6 +449,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             return
 
         mod_list = disable_mods(to_disable)
+        _invalidate_status_cache()
         self._send_json({"total_active": len(mod_list.mods), "disabled": to_disable})
 
     def _handle_disable_scan_breaking(self, body: dict) -> None:
@@ -408,6 +460,7 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
             self._send_json({"error": "mod_ids required"}, 400)
             return
         mod_list = disable_mods(mod_ids)
+        _invalidate_status_cache()
         self._send_json({"total_active": len(mod_list.mods), "disabled": mod_ids})
 
     def _handle_mods_delete(self, body: dict) -> None:
@@ -420,6 +473,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         try:
             deleted_path = delete_mod(mod_id)
             if deleted_path:
+                _invalidate_status_cache()
+                _mod_cache["mtime"] = 0.0  # Also invalidate discovery cache
                 self._send_json({"deleted": mod_id, "path": str(deleted_path)})
             else:
                 self._send_json({"error": f"Mod not found: {mod_id}"}, 404)

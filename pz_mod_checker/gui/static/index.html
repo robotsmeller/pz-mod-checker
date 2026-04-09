@@ -242,9 +242,9 @@
             <option value="updates">Workshop issues first</option>
           </select>
           <button onclick="bulkMods('enable')"
-                  class="bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
+                  class="bulk-btn bg-emerald-700 hover:bg-emerald-600 text-white px-4 py-2 rounded text-sm transition-colors">Enable All</button>
           <button onclick="bulkMods('disable')"
-                  class="bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors">Disable All</button>
+                  class="bulk-btn bg-red-700 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition-colors">Disable All</button>
           <button onclick="refreshMods()"
                   class="bg-surface-3 hover:bg-surface-4 text-slate-300 px-4 py-2 rounded text-sm transition-colors">Refresh</button>
           <button id="btn-check-updates" onclick="checkWorkshopUpdates()"
@@ -513,6 +513,15 @@ document.addEventListener('click', async (e) => {
   }
 });
 
+// Keyboard support for toggle switches and action buttons (Enter/Space)
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' && e.key !== ' ') return;
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  e.preventDefault();
+  btn.click();
+});
+
 /* ======================================================================
    Tabs
    ====================================================================== */
@@ -674,18 +683,23 @@ function renderScanResults(data) {
     const wc = findings.filter(f => f.severity === 'warning').length;
     const ic = findings.filter(f => f.severity === 'info').length;
     const hasBreaking = bc > 0;
+    const modEnabled = data.mod_status ? data.mod_status[modId] !== false : true;
     const ws = workshopData[modId];
     const wsUrl = ws?.workshop_id ? `https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(ws.workshop_id)}` : '';
     const wsBadge = !ws || !wsUrl ? '' :
       ws.has_update ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded hover:bg-amber-800 transition-colors" title="${esc(ws.detail)}">newer version on Workshop</a>` :
       ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded hover:bg-red-800 transition-colors" title="${esc(ws.detail)}">pre-B42</a>` :
       ws.reason === 'claims_b42_support' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded hover:bg-emerald-800 transition-colors" title="${esc(ws.detail)}">mentions B42</a>` : '';
+    const disabledBadge = modEnabled ? '' : '<span class="text-xs bg-slate-700 text-slate-400 px-1.5 py-0.5 rounded">disabled</span>';
+    const wsLink = wsUrl ? `<a href="${wsUrl}" target="_blank" class="text-slate-500 hover:text-slate-300 inline-flex" title="Open on Steam Workshop" onclick="event.stopPropagation()"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
     html += `
-      <details class="card mb-2">
+      <details class="card mb-2${modEnabled ? '' : ' opacity-60'}">
         <summary class="p-4 flex items-center justify-between hover:bg-surface-3 rounded-lg transition-colors">
           <div class="flex items-center gap-3">
             <span class="font-medium text-slate-100">${esc(modName)}</span>
+            ${wsLink}
             <span class="text-xs text-slate-500">${esc(modId)}</span>
+            ${disabledBadge}
             ${wsBadge}
           </div>
           <div class="flex gap-2 items-center">
@@ -747,14 +761,14 @@ function renderFinding(f) {
   const specClass = f.confidence === 'speculative' ? ' finding-speculative' : '';
   return `<div class="bg-surface-1 rounded p-3 text-sm${specClass}">
     <div class="flex items-start gap-2 mb-1">
-      ${severityBadge(f.severity)}${confidenceBadge(f.confidence)}
-      <span class="text-slate-200">${esc(f.message)}</span>
-      ${f.rule_id ? `<span class="dev-only-inline text-xs text-slate-600 font-mono ml-auto flex-shrink-0">${esc(f.rule_id)}</span>` : ''}
+      <div class="flex items-center gap-1 flex-shrink-0">${severityBadge(f.severity)}${confidenceBadge(f.confidence)}</div>
+      <span class="text-slate-200 flex-1">${esc(f.message)}</span>
+      ${f.rule_id ? `<span class="dev-only-inline text-xs text-slate-600 font-mono flex-shrink-0">${esc(f.rule_id)}</span>` : ''}
     </div>
-    ${f.file_path ? `<div class="text-xs text-slate-500 ml-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
-    ${f.line_text ? `<div class="text-xs text-slate-500 ml-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
-    ${f.suggestion ? `<div class="text-xs text-pz-green ml-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
-    ${f.context ? `<div class="text-xs text-slate-500 ml-[52px] mt-1">${esc(f.context)}</div>` : ''}
+    ${f.file_path ? `<div class="text-xs text-slate-500 pl-[52px]">${esc(f.file_path)}${f.line_number ? ':' + f.line_number : ''}</div>` : ''}
+    ${f.line_text ? `<div class="text-xs text-slate-500 pl-[52px] font-mono mt-1">${esc(f.line_text)}</div>` : ''}
+    ${f.suggestion ? `<div class="text-xs text-pz-green pl-[52px] mt-1">${esc(f.suggestion)}</div>` : ''}
+    ${f.context ? `<div class="text-xs text-slate-500 pl-[52px] mt-1">${esc(f.context)}</div>` : ''}
   </div>`;
 }
 
@@ -793,11 +807,12 @@ function renderFindingGroups(findings) {
 
   const sortBySev = (a, b) => (sevOrder[a.severity] ?? 3) - (sevOrder[b.severity] ?? 3);
 
+  const expandAll = findings.length <= 10;
   for (const [groupName, items] of sortedGroups) {
     items.sort(sortBySev);
     const gSev = maxSeverity(items);
-    const isBreaking = gSev === 'breaking';
-    html += `<details${isBreaking ? ' open' : ''} class="rule-group-header">
+    const shouldOpen = expandAll || gSev === 'breaking' || gSev === 'warning';
+    html += `<details${shouldOpen ? ' open' : ''} class="rule-group-header">
       <summary class="px-3 py-2 text-sm text-slate-300 flex items-center justify-between cursor-pointer">
         <div class="flex items-center gap-2">${severityBadge(gSev)} <span class="font-medium">${groupLabel(groupName)}</span></div>
         <span class="text-xs text-slate-500">${items.length} finding${items.length !== 1 ? 's' : ''}</span>
@@ -820,7 +835,7 @@ function renderFindingGroups(findings) {
       for (const sev of activeSevs) {
         const items = bySev[sev];
         const label = sev === 'breaking' ? 'Breaking' : sev === 'warning' ? 'Warnings' : 'Info';
-        const open = sev === 'breaking' ? ' open' : '';
+        const open = (expandAll || sev === 'breaking' || sev === 'warning') ? ' open' : '';
         html += `<details${open} class="border border-surface-3 rounded">
           <summary class="px-3 py-2 text-xs font-medium text-slate-400 hover:bg-surface-3 rounded cursor-pointer flex items-center justify-between">
             <span>${severityBadge(sev)} ${label}</span>
@@ -983,10 +998,10 @@ async function disableMod(modId) {
     toast(`Disabled ${modId}`, 'success');
     const mod = allMods.find(m => m.mod_id === modId);
     if (mod) mod.enabled = false;
-    // Remove from scan results and re-render
-    if (lastScanData && lastScanData.mods && lastScanData.mods[modId]) {
-      delete lastScanData.mods[modId];
-      lastScanData.total_mods_with_issues = Object.keys(lastScanData.mods).length;
+    // Mark as disabled in scan results and re-render
+    if (lastScanData) {
+      if (!lastScanData.mod_status) lastScanData.mod_status = {};
+      lastScanData.mod_status[modId] = false;
       renderScanResults(lastScanData);
     }
     refreshHeader();
@@ -1216,10 +1231,11 @@ function renderMods(mods) {
       ws.reason === 'not_updated_since_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded ml-2 hover:bg-red-800 transition-colors" title="${esc(ws.detail)}">pre-B42</a>` :
       ws.reason === 'claims_b42_support' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-emerald-900 text-emerald-300 px-1.5 py-0.5 rounded ml-2 hover:bg-emerald-800 transition-colors" title="${esc(ws.detail)}">mentions B42</a>` :
       ws.reason === 'updated_post_b42' ? `<a href="${wsUrl}" target="_blank" class="text-xs bg-surface-3 text-slate-400 px-1.5 py-0.5 rounded ml-2 hover:bg-surface-4 transition-colors" title="${esc(ws.detail)}">updated post-B42</a>` : '';
+    const wsLink = wsUrl ? `<a href="${wsUrl}" target="_blank" class="text-slate-500 hover:text-slate-300 ml-1 inline-flex align-middle" title="Open on Steam Workshop"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></a>` : '';
     return `
     <div class="flex items-center justify-between bg-surface-1 rounded px-3 py-2 hover:bg-surface-3 transition-colors mod-row" data-id="${esc(m.mod_id)}">
       <div class="flex-1 min-w-0 mr-3">
-        <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}${badge}</div>
+        <div class="text-sm font-medium text-slate-200 truncate">${esc(m.name)}${wsLink}${badge}</div>
         <div class="text-xs text-slate-500 truncate">${esc(m.mod_id)}${ws?.last_updated ? ` \u00B7 Workshop: ${esc(ws.last_updated)}` : ''}</div>
       </div>
       <div class="flex items-center gap-2">
@@ -1283,6 +1299,8 @@ let lastFilteredMods = [];
 
 async function toggleMod(modId, enable) {
   const endpoint = enable ? '/api/mods/enable' : '/api/mods/disable';
+  const row = document.querySelector(`.mod-row[data-id="${modId}"]`);
+  if (row) row.style.opacity = '0.5';
   try {
     await api('POST', endpoint, { mod_ids: [modId] });
     const mod = allMods.find(m => m.mod_id === modId);
@@ -1291,6 +1309,7 @@ async function toggleMod(modId, enable) {
     refreshHeader();
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
+    if (row) row.style.opacity = '';
   }
 }
 
@@ -1300,6 +1319,8 @@ async function bulkMods(action) {
   if (ids.length === 0) return;
   const word = action === 'enable' ? 'Enable' : 'Disable';
   if (!await confirmModal(`${word} ${ids.length} visible mod(s)?`)) return;
+  const bulkBtns = document.querySelectorAll('.bulk-btn');
+  bulkBtns.forEach(b => { b.disabled = true; b.style.opacity = '0.5'; });
   try {
     await api('POST', `/api/mods/${action}`, { mod_ids: ids });
     const idSet = new Set(ids);
@@ -1309,6 +1330,8 @@ async function bulkMods(action) {
     toast(`${word}d ${ids.length} mods.`, 'success');
   } catch (e) {
     toast('Failed: ' + e.message, 'error');
+  } finally {
+    bulkBtns.forEach(b => { b.disabled = false; b.style.opacity = ''; });
   }
 }
 

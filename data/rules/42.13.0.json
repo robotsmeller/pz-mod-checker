@@ -75,7 +75,7 @@
       "confidence": "certain",
       "since": "42.13.0",
       "description": "setExclusive()/setAltModel() now require ItemBodyLocation enum instead of strings",
-      "pattern": "setExclusive|setAltModel",
+      "pattern": "\\bsetExclusive\\b|\\bsetAltModel\\b",
       "regex": true,
       "scan": "*.lua",
       "replacement": "Use ItemBodyLocation enum: e.g. setExclusive(ItemBodyLocation.Shoes) instead of setExclusive('Shoes')",
