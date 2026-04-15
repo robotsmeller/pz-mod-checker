@@ -141,11 +141,11 @@
       "severity": "warning",
       "confidence": "likely",
       "since": "42.13.0",
-      "description": "ItemTag changed from enum to registry-based class — string comparisons may break",
-      "pattern": "ItemTag\\.",
+      "description": "hasTag/containsTag called with string literal — custom tags now require ItemTag.register()",
+      "pattern": "hasTag\\s*\\(\\s*[\"']|containsTag\\s*\\(\\s*[\"']|getFirstTag\\w*\\s*\\(\\s*[\"']",
       "regex": true,
       "scan": "*.lua",
-      "context": "ItemTag refactored to class with registry support in 42.13"
+      "context": "In B42.13 custom mod tags must be registered via ItemTag.register('modid:name'). Vanilla constants like ItemTag.PIPE_WRENCH still work. String literals passed to hasTag/containsTag/getFirstTag may fail for custom tags."
     },
     {
       "id": "b42-13-recipe-seeall-removed",

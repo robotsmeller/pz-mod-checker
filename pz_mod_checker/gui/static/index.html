@@ -139,6 +139,7 @@
     <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-diagnose" data-tab="diagnose">Diagnose</button>
     <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-mods" data-tab="mods">Mods</button>
     <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-bisect" data-tab="bisect">Bisect</button>
+    <button class="tab-btn px-4 py-3 text-sm font-medium text-slate-400 hover:text-slate-200 rounded-t transition-colors" role="tab" aria-selected="false" aria-controls="tab-translate" data-tab="translate">Translate</button>
   </nav>
 
   <!-- Scope Bar -->
@@ -255,6 +256,86 @@
         <div id="mod-list" class="space-y-1 max-h-[60vh] overflow-y-auto pr-2"></div>
       </div>
 
+    </section>
+
+    <!-- ==================== TRANSLATE TAB ==================== -->
+    <section id="tab-translate" class="tab-panel hidden" role="tabpanel">
+      <p class="text-xs text-slate-500 mb-3">Fix untranslated UI strings. Scans mods for missing EN translation keys and generates a stub mod that displays readable text instead of raw key names like <code class="text-pz-green text-xs">UI_SomeMod_OpenWindow</code>.</p>
+
+      <!-- Status + toggle card -->
+      <div class="card p-5 mb-4">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <div class="text-sm font-medium text-slate-200 mb-1">Translation Shim</div>
+            <div id="translate-shim-status" class="text-xs text-slate-400">Checking...</div>
+          </div>
+          <div class="flex items-center gap-4">
+            <label class="flex items-center gap-2 cursor-pointer select-none text-sm text-slate-300">
+              <span id="translate-toggle-label">Disabled</span>
+              <div id="translate-toggle" class="toggle-track" onclick="toggleTranslateShim()" role="switch" aria-checked="false" tabindex="0"
+                   onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleTranslateShim()}">
+                <div class="toggle-thumb"></div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Options card -->
+      <div class="card p-5 mb-4">
+        <div class="text-xs font-medium text-slate-400 uppercase tracking-wide mb-3">Options</div>
+        <div class="flex flex-wrap gap-6 text-sm">
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="opt-include-no-translation" checked
+                   class="accent-emerald-500 w-4 h-4" onchange="onTranslateOptionChange()">
+            <span class="text-slate-300">Mods with no translation file</span>
+          </label>
+          <label class="flex items-center gap-2 cursor-pointer">
+            <input type="checkbox" id="opt-include-partial" checked
+                   class="accent-emerald-500 w-4 h-4" onchange="onTranslateOptionChange()">
+            <span class="text-slate-300">Mods with partial translations</span>
+          </label>
+          <div class="flex items-center gap-3 text-slate-300">
+            <span class="text-slate-400">String format:</span>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="key-format" value="title_case" checked class="accent-emerald-500" onchange="onTranslateOptionChange()">
+              <span>Title Case <span class="text-slate-500 text-xs">(Open Window)</span></span>
+            </label>
+            <label class="flex items-center gap-1.5 cursor-pointer">
+              <input type="radio" name="key-format" value="raw" class="accent-emerald-500" onchange="onTranslateOptionChange()">
+              <span>Raw key <span class="text-slate-500 text-xs">(UI_Mod_OpenWindow)</span></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="flex items-center gap-3 mb-4">
+        <button id="btn-translate-scan" onclick="runTranslateScan()"
+                class="bg-emerald-700 hover:bg-emerald-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors">
+          Scan Mods
+        </button>
+        <button id="btn-translate-generate" onclick="generateTranslateShim()"
+                class="bg-sky-700 hover:bg-sky-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors hidden">
+          Generate Shim
+        </button>
+        <button id="btn-translate-update" onclick="generateTranslateShim()"
+                class="bg-sky-700 hover:bg-sky-600 text-white px-5 py-2 rounded text-sm font-medium transition-colors hidden">
+          Update Shim
+        </button>
+        <button id="btn-translate-remove" onclick="removeTranslateShim()"
+                class="bg-red-800 hover:bg-red-700 text-white px-4 py-2 rounded text-sm transition-colors hidden">
+          Remove Shim
+        </button>
+      </div>
+
+      <!-- Scan results -->
+      <div id="translate-results">
+        <div class="card p-8 text-center text-slate-500">
+          <svg class="w-10 h-10 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.5 21l5.25-11.25L21 21m-9-3h7.5M3 5.621a48.474 48.474 0 016-.371m0 0c1.12 0 2.233.038 3.334.114M9 5.25V3m3.334 2.364C11.176 10.658 7.69 15.08 3 17.502m9.334-12.138c.896.061 1.785.147 2.666.257m-4.589 8.495a18.023 18.023 0 01-3.827-5.802"/></svg>
+          <div class="text-sm">Press <strong class="text-pz-green">Scan Mods</strong> to find mods with missing translation keys.</div>
+        </div>
+      </div>
     </section>
 
     <!-- ==================== BISECT TAB ==================== -->
@@ -535,6 +616,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 
     if (btn.dataset.tab === 'mods' && allMods.length === 0) refreshMods();
     if (btn.dataset.tab === 'bisect') refreshBisect();
+    if (btn.dataset.tab === 'translate') refreshTranslate();
   });
 });
 
@@ -1647,6 +1729,201 @@ async function refreshHeader() {
     populateVersionDropdown(data.versions || [], detectedPZVersion);
   }).catch(() => {});
 })();
+
+/* ======================================================================
+   Translate
+   ====================================================================== */
+let translateShimEnabled = false;
+let translateShimExists = false;
+let translateLastGaps = null;
+
+async function refreshTranslate() {
+  await loadTranslateStatus();
+}
+
+function getTranslateParams() {
+  const noTrans = $('opt-include-no-translation').checked ? '1' : '0';
+  const partial = $('opt-include-partial').checked ? '1' : '0';
+  return `include_no_translation=${noTrans}&include_partial=${partial}`;
+}
+
+async function loadTranslateStatus() {
+  const params = getTranslateParams();
+  try {
+    const data = await api('GET', `/api/translate/status?${params}`);
+    updateTranslateShimUI(data.shim);
+  } catch (e) {
+    $('translate-shim-status').textContent = 'Error loading status: ' + e.message;
+  }
+}
+
+function updateTranslateShimUI(shim) {
+  if (!shim) return;
+  translateShimEnabled = shim.enabled;
+  translateShimExists = shim.exists;
+
+  const toggle = $('translate-toggle');
+  const label = $('translate-toggle-label');
+  const statusEl = $('translate-shim-status');
+
+  toggle.classList.toggle('on', shim.enabled);
+  toggle.setAttribute('aria-checked', shim.enabled ? 'true' : 'false');
+  label.textContent = shim.enabled ? 'Enabled' : 'Disabled';
+
+  if (!shim.exists) {
+    statusEl.textContent = 'No shim generated yet. Scan mods and click Generate Shim.';
+    statusEl.className = 'text-xs text-slate-400';
+  } else if (shim.enabled) {
+    statusEl.textContent = `Active — ${shim.key_count} stub keys loaded by PZ`;
+    statusEl.className = 'text-xs text-pz-green';
+  } else {
+    statusEl.textContent = `Generated (${shim.key_count} stub keys) — not active`;
+    statusEl.className = 'text-xs text-amber-400';
+  }
+
+  $('btn-translate-remove').classList.toggle('hidden', !shim.exists);
+}
+
+function updateTranslateButtons(hasGaps) {
+  const shim = translateShimExists;
+  $('btn-translate-generate').classList.toggle('hidden', !hasGaps || shim);
+  $('btn-translate-update').classList.toggle('hidden', !hasGaps || !shim);
+}
+
+async function runTranslateScan() {
+  const el = $('translate-results');
+  const btn = $('btn-translate-scan');
+  btn.disabled = true;
+  btn.textContent = 'Scanning...';
+  loading(el);
+
+  const params = getTranslateParams();
+  try {
+    const data = await api('GET', `/api/translate/status?${params}`);
+    updateTranslateShimUI(data.shim);
+    translateLastGaps = data.gaps;
+    renderTranslateResults(data);
+    updateTranslateButtons(data.gaps.length > 0);
+  } catch (e) {
+    el.innerHTML = errorBox('Scan failed: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Scan Mods';
+  }
+}
+
+function renderTranslateResults(data) {
+  const el = $('translate-results');
+  if (!data.gaps || data.gaps.length === 0) {
+    el.innerHTML = `<div class="card p-6 text-center text-pz-green text-sm">No missing translation keys found. All mods look good.</div>`;
+    return;
+  }
+
+  const summaryHtml = `
+    <div class="card p-4 mb-4">
+      <div class="flex gap-6 text-sm">
+        <div><span class="text-slate-400">Mods with gaps:</span> <span class="font-bold text-slate-100">${data.total_mods}</span></div>
+        <div><span class="text-slate-400">Missing keys:</span> <span class="font-bold text-slate-100">${data.total_missing_keys}</span></div>
+      </div>
+    </div>`;
+
+  const rows = data.gaps.map(g => {
+    const badge = g.has_any_translation
+      ? `<span class="text-xs bg-amber-900 text-amber-300 px-1.5 py-0.5 rounded">partial</span>`
+      : `<span class="text-xs bg-red-900 text-red-300 px-1.5 py-0.5 rounded">none</span>`;
+    const wsLink = g.workshop_id
+      ? `<a href="https://steamcommunity.com/sharedfiles/filedetails/?id=${esc(g.workshop_id)}" target="_blank"
+            class="text-slate-500 hover:text-pz-green transition-colors ml-1" title="Steam Workshop">
+           <svg class="inline w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M11 3a1 1 0 100 2h2.586l-6.293 6.293a1 1 0 101.414 1.414L15 6.414V9a1 1 0 102 0V4a1 1 0 00-1-1h-5z"/><path d="M5 5a2 2 0 00-2 2v8a2 2 0 002 2h8a2 2 0 002-2v-3a1 1 0 10-2 0v3H5V7h3a1 1 0 000-2H5z"/></svg>
+         </a>` : '';
+    return `<tr class="border-b border-surface-3 hover:bg-surface-2">
+      <td class="py-2 px-3 text-sm text-slate-200">${esc(g.mod_name)}${wsLink}</td>
+      <td class="py-2 px-3 text-center">${badge}</td>
+      <td class="py-2 px-3 text-center text-sm text-slate-300">${g.missing_keys}</td>
+      <td class="py-2 px-3 text-center text-xs text-slate-500">${g.total_keys}</td>
+    </tr>`;
+  }).join('');
+
+  el.innerHTML = summaryHtml + `
+    <div class="card overflow-hidden">
+      <table class="w-full text-left text-sm">
+        <thead>
+          <tr class="border-b border-surface-3 bg-surface-1">
+            <th class="py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide">Mod</th>
+            <th class="py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide text-center">Trans File</th>
+            <th class="py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide text-center">Missing Keys</th>
+            <th class="py-2 px-3 text-xs font-medium text-slate-400 uppercase tracking-wide text-center">Total Keys</th>
+          </tr>
+        </thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+}
+
+async function generateTranslateShim() {
+  const btn = translateShimExists ? $('btn-translate-update') : $('btn-translate-generate');
+  btn.disabled = true;
+  btn.textContent = translateShimExists ? 'Updating...' : 'Generating...';
+
+  const keyFormat = document.querySelector('input[name="key-format"]:checked')?.value || 'title_case';
+  const includeNoTrans = $('opt-include-no-translation').checked;
+  const includePartial = $('opt-include-partial').checked;
+
+  try {
+    const data = await api('POST', '/api/translate/generate', {
+      include_no_translation: includeNoTrans,
+      include_partial: includePartial,
+      key_format: keyFormat,
+      enable: true,
+    });
+    updateTranslateShimUI(data.shim);
+    updateTranslateButtons(translateLastGaps && translateLastGaps.length > 0);
+    refreshHeader();
+    toast(`Shim generated: ${data.key_count} stub keys across ${data.mod_count} mods`, 'success');
+  } catch (e) {
+    toast('Failed to generate shim: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = translateShimExists ? 'Update Shim' : 'Generate Shim';
+  }
+}
+
+async function toggleTranslateShim() {
+  if (!translateShimExists) {
+    toast('Generate the shim first.', 'info');
+    return;
+  }
+  const enable = !translateShimEnabled;
+  try {
+    const data = await api('POST', '/api/translate/toggle', { enable });
+    updateTranslateShimUI(data.shim);
+    refreshHeader();
+    toast(enable ? 'Translation shim enabled' : 'Translation shim disabled', 'info');
+  } catch (e) {
+    toast('Toggle failed: ' + e.message, 'error');
+  }
+}
+
+async function removeTranslateShim() {
+  if (!confirm('Remove the translation shim mod? It will be deleted from disk and disabled.')) return;
+  try {
+    const data = await api('POST', '/api/translate/remove', {});
+    translateShimExists = false;
+    translateLastGaps = null;
+    updateTranslateShimUI(data.shim);
+    updateTranslateButtons(false);
+    $('btn-translate-remove').classList.add('hidden');
+    refreshHeader();
+    toast('Translation shim removed.', 'info');
+  } catch (e) {
+    toast('Remove failed: ' + e.message, 'error');
+  }
+}
+
+function onTranslateOptionChange() {
+  // If results are already shown, re-run the scan with new options
+  if (translateLastGaps !== null) runTranslateScan();
+}
 
 async function checkForUpdates() {
   try {

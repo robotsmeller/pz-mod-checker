@@ -65,18 +65,6 @@
       "group": "inventory-ui-rewrite"
     },
     {
-      "id": "b42-removed-transferall",
-      "type": "api_removal",
-      "severity": "breaking",
-      "confidence": "certain",
-      "since": "42.0.0",
-      "description": "ISInventoryTransferAction removed — transfer system rewritten",
-      "pattern": "ISInventoryTransferAction",
-      "scan": "*.lua",
-      "context": "Inventory transfer actions are completely new in B42",
-      "group": "inventory-ui-rewrite"
-    },
-    {
       "id": "b42-removed-isinventorypanecontextmenu",
       "type": "api_removal",
       "severity": "breaking",

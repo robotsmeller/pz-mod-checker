@@ -175,6 +175,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_docs()
             elif path == "/api/workshop/check":
                 self._handle_workshop_check()
+            elif path == "/api/translate/status":
+                self._handle_translate_status(params)
             else:
                 self.send_error(404)
         except Exception as e:
@@ -210,6 +212,12 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_bisect_ok()
             elif path == "/api/bisect/abort":
                 self._handle_bisect_abort()
+            elif path == "/api/translate/generate":
+                self._handle_translate_generate(body)
+            elif path == "/api/translate/toggle":
+                self._handle_translate_toggle(body)
+            elif path == "/api/translate/remove":
+                self._handle_translate_remove()
             else:
                 self.send_error(404)
         except Exception as e:
@@ -548,6 +556,77 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         from ..bisect import bisect_abort
         bisect_abort()
         self._send_json({"aborted": True})
+
+    # --- Translation Shim Handlers ---
+
+    def _handle_translate_status(self, params: dict) -> None:
+        from ..translate import scan_translation_gaps, get_shim_status
+
+        include_no_translation = params.get("include_no_translation", ["1"])[0] != "0"
+        include_partial = params.get("include_partial", ["1"])[0] != "0"
+
+        gaps = scan_translation_gaps(
+            include_no_translation=include_no_translation,
+            include_partial=include_partial,
+        )
+        shim = get_shim_status()
+
+        self._send_json({
+            "shim": shim,
+            "total_mods": len(gaps),
+            "total_missing_keys": sum(len(g.missing_keys) for g in gaps),
+            "gaps": [
+                {
+                    "mod_id": g.mod_id,
+                    "mod_name": g.mod_name,
+                    "workshop_id": g.workshop_id,
+                    "missing_keys": len(g.missing_keys),
+                    "total_keys": g.total_keys,
+                    "has_any_translation": g.has_any_translation,
+                }
+                for g in gaps
+            ],
+        })
+
+    def _handle_translate_generate(self, body: dict) -> None:
+        from ..translate import scan_translation_gaps, generate_shim, get_shim_status, SHIM_MOD_ID
+        from ..manager import enable_mods
+
+        include_no_translation = body.get("include_no_translation", True)
+        include_partial = body.get("include_partial", True)
+        key_format = body.get("key_format", "title_case")
+        enable_after = body.get("enable", True)
+
+        gaps = scan_translation_gaps(
+            include_no_translation=include_no_translation,
+            include_partial=include_partial,
+        )
+        result = generate_shim(gaps, key_format=key_format)
+
+        if enable_after:
+            enable_mods([SHIM_MOD_ID])
+            _invalidate_status_cache()
+
+        result["shim"] = get_shim_status()
+        self._send_json(result)
+
+    def _handle_translate_toggle(self, body: dict) -> None:
+        from ..translate import SHIM_MOD_ID, get_shim_status
+        from ..manager import enable_mods, disable_mods
+
+        enable = body.get("enable", True)
+        if enable:
+            enable_mods([SHIM_MOD_ID])
+        else:
+            disable_mods([SHIM_MOD_ID])
+        _invalidate_status_cache()
+        self._send_json({"enabled": enable, "shim": get_shim_status()})
+
+    def _handle_translate_remove(self) -> None:
+        from ..translate import remove_shim, get_shim_status
+        remove_shim()
+        _invalidate_status_cache()
+        self._send_json({"removed": True, "shim": get_shim_status()})
 
 
 def start_server(port: int = _PORT, open_browser: bool = True) -> None:
