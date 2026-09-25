@@ -586,6 +586,18 @@ def test_b42_17_new_skill_vhs_tapes():
         assert findings[0].rule_id == "b42-17-new-skill-vhs-tapes"
 
 
+def test_b42_20_4_loadstring_window():
+    """The shipped loadstring rule fires on 42.20.4 only: removed there, back in 42.21."""
+    rules = load_rules_from_dir(Path(__file__).parent.parent / "data" / "rules")
+    only = RuleSet(rules=[r for r in rules if r.id == "b42-20-4-loadstring-removed"])
+    assert len(only.rules) == 1
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_mod_with_lua(Path(tmp), lua_content="local fn = loadstring(code)")
+        assert len(check_mod(mod, only, PZVersion.parse("42.20.3"))) == 0
+        assert len(check_mod(mod, only, PZVersion.parse("42.20.4"))) == 1
+        assert len(check_mod(mod, only, PZVersion.parse("42.21.0"))) == 0
+
+
 if __name__ == "__main__":
     test_load_rules()
     test_load_no_comp()

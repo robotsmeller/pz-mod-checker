@@ -1,0 +1,22 @@
+{
+  "version": "42.20.4",
+  "summary": "Emergency security hotfix to 42.20 Stable. The only modding-facing change is that loadstring and loadstream were removed from the Kahlua host. 42.21 (unstable, 2026-09-23) put both back, so the rule carries fixed_in and stops firing at 42.21.",
+  "source": "https://store.steampowered.com/news/app/108600",
+  "release_date": "2026-08-26",
+  "changes": [
+    {
+      "id": "b42-20-4-loadstring-removed",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.20.4",
+      "fixed_in": "42.21.0",
+      "description": "loadstring and loadstream do not exist in 42.20.4. Any call throws 'Object tried to call nil', and code that stores a reference to either gets nil.",
+      "pattern": "\\bload(string|stream)\\b",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "Removed in the 42.20.4 hotfix (26 Aug 2026) for a security vulnerability; TIS re-enabled both in 42.21 unstable (23 Sep 2026, patch notes: 'we've decided to re-enable those commands'). Measured on the reversal side: PZ Test Pilot's run_lua, which compiles inline code with loadstring, ran on 42.21.0 on 2026-09-25 and failed on 42.20.4. A mod that must run on both builds should feature-detect with 'if loadstring then' instead of checking the version, because players are on both branches at once and 42.21 will reach stable later. The pattern matches the bare word, so a mention inside a comment is a false positive, and a feature-detect guard like the one above is flagged too even though it is the correct fix; read the hit before acting on it.",
+      "group": "b42-20-4-security"
+    }
+  ]
+}
