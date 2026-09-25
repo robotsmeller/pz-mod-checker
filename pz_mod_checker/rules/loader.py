@@ -25,7 +25,7 @@ class Rule:
     regex: bool = False
     scan: str = ""  # file glob: *.lua, *.txt
     path: str = ""  # subdirectory to check within mod
-    check: str = ""  # dir_exists, file_exists, encoding_utf8, exists
+    check: str = ""  # dir_exists, file_exists, encoding_utf8, exists, gettext_arity
     old_pattern: str = ""
     new_name: str = ""
     field_name: str = ""  # for mod_info rules

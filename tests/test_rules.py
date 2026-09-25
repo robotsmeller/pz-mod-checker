@@ -598,6 +598,44 @@ def test_b42_20_4_loadstring_window():
         assert len(check_mod(mod, only, PZVersion.parse("42.21.0"))) == 0
 
 
+_GETTEXT_LUA = """\
+local a = getText("MyMod_Add")                          -- 1: missing %1
+local b = getText("MyMod_Add", item:getName())          -- ok
+local c = getText("MyMod_Two", f(x, y))                 -- 3: missing %2, f(x, y) is one arg
+local d = getText("MyMod_Two",
+    first, second)                                      -- ok, spans lines
+local e = getText("MyMod_Plain")                        -- ok, no placeholder
+local g = getText("IGUI_Vanilla_Key")                   -- not the mod's key, not judged
+-- getText("MyMod_Add")                                 -- comment, ignored
+local h = getText("MyMod_Pct")                          -- ok, %%1 is a literal percent
+local i = getText('MyMod_Legacy', "", "")               -- 10: .txt key needs 3
+"""
+
+
+def _make_gettext_mod(tmp: Path) -> ModInfo:
+    mod = _make_mod_with_lua(tmp, lua_content=_GETTEXT_LUA)
+    en = mod.path / "media" / "lua" / "shared" / "Translate" / "EN"
+    en.mkdir(parents=True)
+    (en / "UI.json").write_text(
+        '{"MyMod_Add": "Add %1", "MyMod_Two": "%1 of %2", "MyMod_Plain": "Hello", "MyMod_Pct": "100%%1"}',
+        encoding="utf-8")
+    (en / "IG_UI_EN.txt").write_text(
+        'IG_UI_EN = {\n    MyMod_Legacy = "%1, %2 and %3",\n}\n', encoding="utf-8")
+    return mod
+
+
+def test_b42_20_2_gettext_arity():
+    """Flags calls with fewer args than the mod's own translation has placeholders, nothing else."""
+    rules = load_rules_from_dir(Path(__file__).parent.parent / "data" / "rules")
+    only = RuleSet(rules=[r for r in rules if r.id == "b42-20-2-gettext-missing-arguments"])
+    assert len(only.rules) == 1
+    with tempfile.TemporaryDirectory() as tmp:
+        mod = _make_gettext_mod(Path(tmp))
+        findings = check_mod(mod, only, PZVersion.parse("42.21.0"))
+        assert sorted(f.line_number for f in findings) == [1, 3, 10]
+        assert len(check_mod(mod, only, PZVersion.parse("42.20.1"))) == 0
+
+
 if __name__ == "__main__":
     test_load_rules()
     test_load_no_comp()

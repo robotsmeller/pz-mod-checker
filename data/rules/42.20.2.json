@@ -1,0 +1,19 @@
+{
+  "version": "42.20.2",
+  "summary": "Hotfix to 42.20 Stable. No files added or removed in the Lua tree. The modding-facing change is getText strictness: vanilla added an empty argument to its own calls whose translation has a %1 placeholder but was being called without one.",
+  "source": "https://store.steampowered.com/news/app/108600",
+  "release_date": "2026-08-05",
+  "changes": [
+    {
+      "id": "b42-20-2-gettext-missing-arguments",
+      "type": "translation",
+      "severity": "warning",
+      "confidence": "certain",
+      "since": "42.20.2",
+      "check": "gettext_arity",
+      "description": "getText is called with fewer arguments than its translation has %N placeholders. The game logs 'ERROR: Missing arguments for \"KEY\"' on every call and shows the text with the placeholder left in.",
+      "context": "Read from the engine, not the patch notes: zombie/core/Translator.getText (42.21.0 jar, checked 2026-09-25) formats the translation with the given arguments and, on MissingFormatArgumentException, logs a Warning and returns the unformatted text. It rethrows only when Core.IS_DEV is set, so this is log spam and a visible placeholder for players, not a crash. Vanilla's own fix was to pass \"\" for unused placeholders, e.g. getText(\"IGUI_Fluids_Mixer_Add\", \"\") for 'Add %1'; 10 such calls in 42.20.4 and 42.21. The check only knows the mod's OWN EN translations (Translate/EN/*.json and *.txt), so a mod calling a vanilla key with missing arguments is not caught. Calls whose key is built at runtime (a variable, or concatenation) are not seen either.",
+      "group": "b42-20-2-translation"
+    }
+  ]
+}

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from dataclasses import dataclass
@@ -493,8 +494,105 @@ def _check_mod_info(mod: ModInfo, rule: Rule) -> list[Finding]:
     return []
 
 
+_GETTEXT_KEY_RE = re.compile(r"""getText\s*\(\s*(["'])([^"'\n]+)\1""")
+_TXT_ENTRY_RE = re.compile(r'^\s*([A-Za-z0-9_.\-]+)\s*=\s*"(.*)"\s*,?\s*$')
+_SPECIFIER_RE = re.compile(r"(?<!%)%(\d+)")
+
+
+def _translation_specifier_counts(mod: ModInfo) -> dict[str, int]:
+    """Map each of the mod's EN translation keys to its highest %N placeholder (0 if none)."""
+    en_dir = mod.translate_root / "EN"
+    if not en_dir.is_dir():
+        return {}
+
+    entries: dict[str, str] = {}
+    for f in sorted(en_dir.rglob("*")):
+        if f.suffix == ".json":
+            try:
+                data = json.loads(f.read_text(encoding="utf-8", errors="replace"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(data, dict):
+                entries.update({k: v for k, v in data.items() if isinstance(v, str)})
+        elif f.suffix == ".txt":
+            try:
+                lines = f.read_text(encoding="utf-8", errors="replace").splitlines()
+            except OSError:
+                continue
+            for line in lines:
+                m = _TXT_ENTRY_RE.match(line)
+                if m:
+                    entries[m.group(1)] = m.group(2)
+
+    return {k: max((int(n) for n in _SPECIFIER_RE.findall(v)), default=0) for k, v in entries.items()}
+
+
+def _count_extra_args(text: str, start: int) -> int | None:
+    """Count the arguments after the key in a getText call, from just past the key's closing quote.
+
+    Returns None if the call never closes, so an unparseable call is skipped rather than flagged.
+    """
+    depth = 0
+    commas = 0
+    quote: str | None = None
+    i = start
+    while i < len(text):
+        ch = text[i]
+        if quote:
+            if ch == "\\":
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in "\"'":
+            quote = ch
+        elif ch in "({[":
+            depth += 1
+        elif ch in ")}]":
+            if depth == 0:
+                return commas if ch == ")" else None
+            depth -= 1
+        elif ch == "," and depth == 0:
+            commas += 1
+        i += 1
+    return None
+
+
+def _check_gettext_arity(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Finding]:
+    """Flag getText calls that pass fewer arguments than the mod's own translation has placeholders."""
+    needed = _translation_specifier_counts(mod)
+    if not any(needed.values()):
+        return []
+
+    findings: list[Finding] = []
+    for lua_file in find_lua_files(mod.lua_root):
+        lines = _cached_read_lines(lua_file, file_cache)
+        text = "\n".join(_strip_lua_comments(lines))
+        for m in _GETTEXT_KEY_RE.finditer(text):
+            key = m.group(2)
+            want = needed.get(key, 0)
+            if want == 0:
+                continue
+            given = _count_extra_args(text, m.end())
+            if given is None or given >= want:
+                continue
+            line_number = text.count("\n", 0, m.start()) + 1
+            findings.append(_make_finding(
+                mod, rule,
+                file_path=str(lua_file.relative_to(mod.path)),
+                line_number=line_number,
+                line_text=lines[line_number - 1].strip(),
+                suggestion=f'"{key}" has {want} placeholder(s), call passes {given}. '
+                           f'Pass one argument per placeholder, "" for any that are unused.',
+            ))
+    return findings
+
+
 def _check_translation(mod: ModInfo, rule: Rule, file_cache: FileCache) -> list[Finding]:
     """Check translation file requirements."""
+    if rule.check == "gettext_arity":
+        return _check_gettext_arity(mod, rule, file_cache)
+
     files = find_translation_files(mod.translate_root)
     if not files:
         return []
