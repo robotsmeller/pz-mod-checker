@@ -1253,23 +1253,13 @@ async function runDiagnose() {
         else unknown++;
       }
 
-      // Build list of unknown modules for "Report" button
-      const unknownModules = unique.filter(m => (classifications[m] || 'unknown') === 'unknown');
-      const reportUrl = unknownModules.length > 0
-        ? 'https://github.com/robotsmeller/unbreaker/issues/new?' + new URLSearchParams({
-            title: `Uncovered require() failures: ${unknownModules.length} module${unknownModules.length !== 1 ? 's' : ''}`,
-            labels: 'mod-request',
-            body: `## Modules not covered by Unbreaker\n\n${unknownModules.map(m => '- `' + m + '`').join('\n')}\n\n_Reported via PZ Mod Checker diagnose page._`,
-          }).toString()
-        : null;
-
       // Store export data on window so onclick handlers can reach it without embedding in HTML attrs
       window._reqExports = {
         txt: modEntries.map(([mod, mods]) =>
           mod + '\n' + [...mods].map(m => '  ' + m + ' [' + (classifications[m] || 'unknown') + ']').join('\n')
         ).join('\n\n'),
         md: '# Missing require() modules\n\n' + modEntries.map(([mod, mods]) =>
-          `## ${mod}\n` + [...mods].map(m => `- \`${m}\` — ${classifications[m] || 'unknown'}`).join('\n')
+          `## ${mod}\n` + [...mods].map(m => `- \`${m}\`: ${classifications[m] || 'unknown'}`).join('\n')
         ).join('\n\n'),
         json: JSON.stringify(modEntries.map(([mod, mods]) => ({
           mod,
@@ -1279,8 +1269,8 @@ async function runDiagnose() {
 
       const moduleBadge = (cls) => {
         if (cls === 'fixed') return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-900/40 text-emerald-300" title="Unbreaker covers this require failure">FIXED</span>';
-        if (cls === 'unrecoverable') return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-900/40 text-red-300" title="Module removed in B42 — no shim possible">UNRECOVERABLE</span>';
-        return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700 text-slate-300" title="Not yet covered by Unbreaker — please report">UNKNOWN</span>';
+        if (cls === 'unrecoverable') return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-900/40 text-red-300" title="Module removed in B42, no vanilla replacement to redirect to">UNRECOVERABLE</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700 text-slate-300" title="Not covered by Unbreaker. Usually a file inside the mod itself, which only the mod author can fix">UNKNOWN</span>';
       };
 
       html += `
@@ -1302,22 +1292,15 @@ async function runDiagnose() {
               <div class="flex flex-wrap gap-3 text-xs">
                 <span class="text-emerald-400">${fixed} fixed by <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3721648770" target="_blank" rel="noopener" class="underline hover:text-emerald-300">Unbreaker</a></span>
                 ${unrecoverable > 0 ? `<span class="text-red-400">${unrecoverable} unrecoverable (B42 removed)</span>` : ''}
-                ${unknown > 0 ? `<span class="text-slate-400">${unknown} not yet covered</span>` : ''}
+                ${unknown > 0 ? `<span class="text-slate-400">${unknown} not covered</span>` : ''}
               </div>
-              ${reportUrl ? `
-                <div class="mt-2">
-                  <a href="${reportUrl}" target="_blank" rel="noopener" class="text-xs inline-flex items-center gap-1 px-2 py-1 rounded bg-sky-900/40 text-sky-300 hover:bg-sky-900/60 transition-colors">
-                    Report ${unknown} unknown module${unknown !== 1 ? 's' : ''} to Unbreaker
-                  </a>
-                </div>
-              ` : ''}
             </div>
             <p class="text-sm text-slate-300 mb-3">
               These mods tried to load Lua modules that don&#39;t exist. This usually means the mod uses features
               removed or renamed in Build 42, or depends on another mod that isn&#39;t installed.
             </p>
             <p class="text-xs text-pz-green mb-3">
-              Fix: install <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3721648770" target="_blank" rel="noopener" class="underline">Unbreaker</a> to silently fix the FIXED entries. UNRECOVERABLE entries need the mod author to update. UNKNOWN entries can be reported above.
+              Fix: install <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3721648770" target="_blank" rel="noopener" class="underline">Unbreaker</a> to silently fix the FIXED entries. UNRECOVERABLE entries need the mod author to update. UNKNOWN entries are usually files inside the mod itself, so check for a B42 update or disable it.
             </p>
             <div class="space-y-2">
               ${modEntries.map(([mod, mods]) => `
