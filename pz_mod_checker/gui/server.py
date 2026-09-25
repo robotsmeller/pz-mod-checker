@@ -175,6 +175,8 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
                 self._handle_docs()
             elif path == "/api/workshop/check":
                 self._handle_workshop_check()
+            elif path == "/api/unbreaker/coverage":
+                self._handle_unbreaker_coverage(params)
             elif path == "/api/translate/status":
                 self._handle_translate_status(params)
             else:
@@ -283,6 +285,34 @@ class PZModCheckerHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "text/markdown; charset=utf-8")
         self.end_headers()
         self.wfile.write(docs_path.read_bytes())
+
+    def _handle_unbreaker_coverage(self, params: dict) -> None:
+        """Return Unbreaker coverage classification for a list of module paths.
+
+        Query params:
+            modules: comma-separated list of module paths (e.g. "ISUI/ISContextMenu,Vehicles/Vehicles")
+            force:  optional "1" to bypass the 24h cache
+
+        Response:
+            {"version": "x.y.z", "classifications": {"ModuleA": "fixed", "ModuleB": "unknown", ...}}
+        """
+        from ..unbreaker import classify, coverage_lookup, fetch_coverage
+
+        modules_param = params.get("modules", [""])[0]
+        force = params.get("force", ["0"])[0] == "1"
+
+        modules = [m for m in modules_param.split(",") if m] if modules_param else []
+
+        coverage = fetch_coverage(force=force)
+        lookup = coverage_lookup(coverage)
+
+        classifications = {m: classify(m, lookup) for m in modules}
+        self._send_json({
+            "version": coverage.get("version", "unknown"),
+            "last_updated": coverage.get("last_updated", ""),
+            "redirect_count": len([e for e in coverage.get("redirects", []) if e.get("verified")]),
+            "classifications": classifications,
+        })
 
     def _handle_workshop_check(self) -> None:
         """Check Workshop for mod update status."""

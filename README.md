@@ -2,7 +2,7 @@
 
 External compatibility scanner, crash diagnostics, and mod manager for **Project Zomboid Build 42**.
 
-Scans your mods for known breaking changes, parses crash logs to identify culprits, checks Steam Workshop for updates, and lets you enable/disable mods without launching the game. Zero dependencies -- runs entirely on Python's standard library.
+Scans your mods for known breaking changes, parses crash logs to identify culprits, checks Steam Workshop for updates, generates translation stubs for missing EN keys, and lets you enable/disable mods without launching the game. Zero dependencies -- runs entirely on Python's standard library.
 
 **[User Guide](docs/user-guide.md)** | **[Download](https://github.com/robotsmeller/pz-mod-checker/releases)** | **[Steam Workshop: @robotsmeller](https://steamcommunity.com/id/robotsmeller)**
 
@@ -29,12 +29,13 @@ pz-mod-checker bisect start
 
 | Feature | Description |
 |---------|-------------|
-| **Scan** | 51 version-keyed rules covering B42.0 through B42.15. Severity filters, pagination, search, inline disable buttons. Sorted by severity (breaking first). |
-| **Diagnose** | Parses `console.txt` crash logs with mod attribution. Plain-language explanations for `require()` failures with fix suggestions. |
+| **Scan** | 81 version-keyed rules covering B42.0 through B42.20.4. Severity filters, pagination, search, inline disable buttons. Sorted by severity (breaking first). |
+| **Diagnose** | Parses `console.txt` crash logs with mod attribution. Catches `require("X")`, `require "X"`, and `pcall(require, "X")` patterns. Plain-language explanations for `require()` failures with fix suggestions and TXT/MD/JSON export. |
 | **Mod Manager** | Toggle mods on/off, search, sort (A-Z, enabled, updates), bulk actions, Workshop update checking with staleness badges. |
 | **Bisect** | Binary search to find the crashing mod. ~8 rounds for 200 mods. Personalized round estimate in GUI. |
 | **Workshop** | Queries Steam Workshop API to detect outdated mods, stale pre-B42 mods, and available updates. 24h cache. |
-| **Web GUI** | Localhost dashboard at `:8642`. Dark theme with PZ green accents, four tabs, global scope bar, JSON API. |
+| **Translate** | Scans mods for missing EN translation keys, generates a single stub shim mod with title-cased strings. On/off toggle in GUI. |
+| **Web GUI** | Localhost dashboard at `:8642`. Dark theme with PZ green accents, multiple tabs, global scope bar, JSON API. |
 | **Dev Mode** | Rule IDs on findings, export per-mod or full reports as TXT/MD/JSON. Aimed at mod developers. |
 | **Scope Bar** | Global Active/All/Profile selector that controls which mods every tab operates on. Persists across sessions. |
 | **Inline Docs** | User guide loads from GitHub (versioned), renders in-app. Update notice when newer version available. |
@@ -68,14 +69,23 @@ pip install pz-mod-checker
 
 | PZ Version | Rules | Key Changes |
 |------------|-------|-------------|
-| 42.0.0 | 13 | Inventory UI removal, crafting overhaul, mod structure |
-| 42.8.0 | 20 | Biome rewrite, blacksmithing items removed |
-| 42.9.0 | 24 | Body location renames |
-| 42.10.0 | 25 | OnCreate signature change |
-| 42.12.0 | 28 | Explosion API migration |
-| 42.13.0 | 40 | Registry system, CharacterStat refactoring |
-| 42.14.0 | 48 | .223 ammo removal, fluid container changes |
-| 42.15.0 | 51 | JSON translations, game mode renames |
+| 42.0.0 | 19 | Inventory UI removal, crafting overhaul, mod structure |
+| 42.5.0 | 20 | ISSearchManager removed |
+| 42.8.0 | 27 | Biome rewrite, blacksmithing items removed |
+| 42.9.0 | 31 | Body location renames |
+| 42.10.0 | 32 | OnCreate signature change |
+| 42.12.0 | 36 | Explosion API migration |
+| 42.13.0 | 52 | Registry system, CharacterStat refactoring |
+| 42.14.0 | 60 | .223 ammo removal, fluid container changes |
+| 42.15.0 | 63 | JSON translations, game mode renames |
+| 42.16.0 | 69 | Occupation/trait renames, sandbox type changes |
+| 42.17.0 | 71 | MapRemotePlayerVisibility, VHS skill tapes |
+| 42.18.0 | 74 | Model prefix rules, safehouse option rename |
+| 42.19.0 | 76 | CharacterCustomisationPanel and CommonTemplates removed |
+| 42.20.0 | 80 | ISFarmingCursor removed, getFileWriter extension whitelist (fixed in 42.20.1) |
+| 42.20.4 | 81 | loadstring/loadstream removed (back in 42.21) |
+
+Rules is the running total added up to that version, counted from the current rule files. Rules with `fixed_in` stop firing at that version.
 
 ---
 
@@ -130,7 +140,7 @@ To add a rule: edit the appropriate version file, test with `pz-mod-checker scan
 
 ## Roadmap
 
-- [x] Scanner with 51 version-keyed rules
+- [x] Scanner with 81 version-keyed rules
 - [x] Crash log diagnostics with mod attribution
 - [x] Mod manager with profiles
 - [x] Bisect (binary search for crashing mod)
@@ -165,7 +175,7 @@ data/
 docs/
     user-guide.md   # User guide (also shown in-app)
 tests/
-    51 tests        # pytest suite
+    78 tests        # pytest suite
 ```
 
 Zero external dependencies. Python 3.10+ stdlib only.

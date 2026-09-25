@@ -1219,9 +1219,19 @@ async function runDiagnose() {
       }
     }
 
-    // Require failures with user-friendly explanation
+    // Require failures with user-friendly explanation + Unbreaker coverage
     if (reqFails.length > 0) {
       const unique = [...new Set(reqFails.map(r => r.module_path))].sort();
+
+      // Fetch Unbreaker coverage classification (24h server-side cache)
+      let coverage = { classifications: {}, version: 'unknown', redirect_count: 0 };
+      try {
+        const params = new URLSearchParams({ modules: unique.join(',') });
+        coverage = await api('GET', '/api/unbreaker/coverage?' + params.toString());
+      } catch (e) {
+        // Network error or Unbreaker repo unreachable — graceful fallback
+      }
+      const classifications = coverage.classifications || {};
 
       // Group by mod_name (fall back to source_file basename, then '[Unknown mod]')
       const byMod = {};
@@ -1234,17 +1244,43 @@ async function runDiagnose() {
       }
       const modEntries = Object.entries(byMod).sort((a, b) => b[1].size - a[1].size);
 
+      // Roll up coverage stats
+      let fixed = 0, unrecoverable = 0, unknown = 0;
+      for (const m of unique) {
+        const c = classifications[m] || 'unknown';
+        if (c === 'fixed') fixed++;
+        else if (c === 'unrecoverable') unrecoverable++;
+        else unknown++;
+      }
+
+      // Build list of unknown modules for "Report" button
+      const unknownModules = unique.filter(m => (classifications[m] || 'unknown') === 'unknown');
+      const reportUrl = unknownModules.length > 0
+        ? 'https://github.com/robotsmeller/unbreaker/issues/new?' + new URLSearchParams({
+            title: `Uncovered require() failures: ${unknownModules.length} module${unknownModules.length !== 1 ? 's' : ''}`,
+            labels: 'mod-request',
+            body: `## Modules not covered by Unbreaker\n\n${unknownModules.map(m => '- `' + m + '`').join('\n')}\n\n_Reported via PZ Mod Checker diagnose page._`,
+          }).toString()
+        : null;
+
       // Store export data on window so onclick handlers can reach it without embedding in HTML attrs
       window._reqExports = {
         txt: modEntries.map(([mod, mods]) =>
-          mod + '\n' + [...mods].map(m => '  ' + m).join('\n')
+          mod + '\n' + [...mods].map(m => '  ' + m + ' [' + (classifications[m] || 'unknown') + ']').join('\n')
         ).join('\n\n'),
         md: '# Missing require() modules\n\n' + modEntries.map(([mod, mods]) =>
-          `## ${mod}\n` + [...mods].map(m => `- \`${m}\``).join('\n')
+          `## ${mod}\n` + [...mods].map(m => `- \`${m}\` — ${classifications[m] || 'unknown'}`).join('\n')
         ).join('\n\n'),
         json: JSON.stringify(modEntries.map(([mod, mods]) => ({
-          mod, missing_modules: [...mods]
+          mod,
+          missing_modules: [...mods].map(m => ({ module: m, unbreaker: classifications[m] || 'unknown' })),
         })), null, 2),
+      };
+
+      const moduleBadge = (cls) => {
+        if (cls === 'fixed') return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-900/40 text-emerald-300" title="Unbreaker covers this require failure">FIXED</span>';
+        if (cls === 'unrecoverable') return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-red-900/40 text-red-300" title="Module removed in B42 — no shim possible">UNRECOVERABLE</span>';
+        return '<span class="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-700 text-slate-300" title="Not yet covered by Unbreaker — please report">UNKNOWN</span>';
       };
 
       html += `
@@ -1261,19 +1297,39 @@ async function runDiagnose() {
             </div>
           </summary>
           <div class="px-4 pb-4">
+            <div class="bg-surface-1 rounded p-3 mb-3 border border-surface-3">
+              <div class="text-xs font-semibold text-slate-300 mb-2">Unbreaker coverage <span class="text-slate-500 font-normal">(v${esc(String(coverage.version))}, ${coverage.redirect_count} redirects)</span></div>
+              <div class="flex flex-wrap gap-3 text-xs">
+                <span class="text-emerald-400">${fixed} fixed by <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3721648770" target="_blank" rel="noopener" class="underline hover:text-emerald-300">Unbreaker</a></span>
+                ${unrecoverable > 0 ? `<span class="text-red-400">${unrecoverable} unrecoverable (B42 removed)</span>` : ''}
+                ${unknown > 0 ? `<span class="text-slate-400">${unknown} not yet covered</span>` : ''}
+              </div>
+              ${reportUrl ? `
+                <div class="mt-2">
+                  <a href="${reportUrl}" target="_blank" rel="noopener" class="text-xs inline-flex items-center gap-1 px-2 py-1 rounded bg-sky-900/40 text-sky-300 hover:bg-sky-900/60 transition-colors">
+                    Report ${unknown} unknown module${unknown !== 1 ? 's' : ''} to Unbreaker
+                  </a>
+                </div>
+              ` : ''}
+            </div>
             <p class="text-sm text-slate-300 mb-3">
               These mods tried to load Lua modules that don&#39;t exist. This usually means the mod uses features
               removed or renamed in Build 42, or depends on another mod that isn&#39;t installed.
             </p>
             <p class="text-xs text-pz-green mb-3">
-              Fix: Check if each mod has a B42-compatible update on the Workshop. If not, disable it.
+              Fix: install <a href="https://steamcommunity.com/sharedfiles/filedetails/?id=3721648770" target="_blank" rel="noopener" class="underline">Unbreaker</a> to silently fix the FIXED entries. UNRECOVERABLE entries need the mod author to update. UNKNOWN entries can be reported above.
             </p>
             <div class="space-y-2">
               ${modEntries.map(([mod, mods]) => `
                 <div class="bg-surface-1 rounded p-3">
                   <div class="text-sm font-medium text-slate-200 mb-1.5">${esc(mod)}</div>
                   <div class="text-xs font-mono text-slate-400 space-y-0.5">
-                    ${[...mods].sort().map(m => `<div class="text-amber-400/80">${esc(m)}</div>`).join('')}
+                    ${[...mods].sort().map(m => `
+                      <div class="flex items-center gap-2">
+                        <span class="text-amber-400/80">${esc(m)}</span>
+                        ${moduleBadge(classifications[m] || 'unknown')}
+                      </div>
+                    `).join('')}
                   </div>
                 </div>
               `).join('')}
