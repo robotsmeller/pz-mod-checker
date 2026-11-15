@@ -1,0 +1,34 @@
+{
+  "version": "42.22.0",
+  "summary": "42.22 (pre-release 2026-10-27, stable as 42.22.2 on 2026-11-09). Game modes became objects instead of strings, and Last Stand was replaced by Challenges. Found by diffing media/lua 42.20.4 against 42.22.2 and reading projectzomboid.jar; neither change is in the 42.21 diff.",
+  "source": "https://store.steampowered.com/news/app/108600",
+  "release_date": "2026-11-09",
+  "changes": [
+    {
+      "id": "b42-22-gamemode-object",
+      "type": "api_signature",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.22.0",
+      "description": "getCore():getGameMode() and getWorld():getGameMode() return a GameMode object, not a string. Comparing the result to a string such as \"Sandbox\" or \"Multiplayer\" is now always false (and ~= always true), with no error, and concatenating it with .. throws.",
+      "pattern": "getGameMode\\(\\)\\s*([=~]=\\s*[\"']|\\.\\.)|[\"']\\s*[=~]=\\s*get(Core|World)\\(\\):getGameMode\\(\\)",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "Read from projectzomboid.jar 42.22.2: Core.getGameMode and IsoWorld.getGameMode both return zombie.core.GameMode (they returned java.lang.String before). Vanilla 42.22 compares against constants such as GameMode.SANDBOX and GameMode.MULTIPLAYER, uses getCore():isTutorial() for the tutorial, and calls :toString() where it needs the name. A mod that must run on 42.20 and 42.22 alike can compare tostring(getCore():getGameMode()) == \"Sandbox\", since tostring works on a string and on the object; that toString() returns the same names as before is inferred from vanilla building save-folder paths with it, not measured in game. On 2026-11-15, 1 of 209 installed Workshop mods hit after version-folder selection (Better Containers, whose newest folder is 42.21); Bandits matched only in its 42.20 folder and ships a 42.22 folder without the old check.",
+      "group": "b42-22-game-modes"
+    },
+    {
+      "id": "b42-22-laststand-removed",
+      "type": "api_removal",
+      "severity": "breaking",
+      "confidence": "certain",
+      "since": "42.22.0",
+      "description": "Last Stand is gone. LastStandData, LastStandChallenge, LastStandPlayerSelect, LastStandPlayerFile and Challenge1 no longer exist, and client/LastStand/ was replaced by client/Challenge/ with ChallengeData.",
+      "pattern": "\\b(LastStand(Data|Challenge|PlayerSelect|PlayerFile|Setup)|Challenge1)\\b",
+      "regex": true,
+      "scan": "*.lua",
+      "context": "Diff of media/lua 42.20.4 against 42.22.2: client/LastStand/ (LastStandPlayerFile.lua, LastStandSetup.lua, Challenge1.lua) and OptionScreens/LastStandChallenge.lua and LastStandPlayerSelect.lua were deleted; client/Challenge/ChallengeData.lua and OptionScreens/ChallengeList.lua were added. MapSpawnSelect now calls ChallengeData.getSpawnRegion() where it called LastStandData.getSpawnRegion(). The remaining challenges (28MinutesLater, AReallyCDDAy, TopOfTheWorld, WinterIsComing) moved folder but keep their file names. A require of a LastStand/ path also fails.",
+      "group": "b42-22-game-modes"
+    }
+  ]
+}

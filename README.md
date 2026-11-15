@@ -29,7 +29,7 @@ pz-mod-checker bisect start
 
 | Feature | Description |
 |---------|-------------|
-| **Scan** | 82 version-keyed rules covering B42.0 through B42.20.4. Severity filters, pagination, search, inline disable buttons. Sorted by severity (breaking first). |
+| **Scan** | 84 version-keyed rules covering B42.0 through B42.22. Severity filters, pagination, search, inline disable buttons. Sorted by severity (breaking first). |
 | **Diagnose** | Parses `console.txt` crash logs with mod attribution. Catches `require("X")`, `require "X"`, and `pcall(require, "X")` patterns. Plain-language explanations for `require()` failures with fix suggestions and TXT/MD/JSON export. |
 | **Mod Manager** | Toggle mods on/off, search, sort (A-Z, enabled, updates), bulk actions, Workshop update checking with staleness badges. |
 | **Bisect** | Binary search to find the crashing mod. ~8 rounds for 200 mods. Personalized round estimate in GUI. |
@@ -85,6 +85,7 @@ pip install pz-mod-checker
 | 42.20.0 | 80 | ISFarmingCursor removed, getFileWriter extension whitelist (fixed in 42.20.1) |
 | 42.20.2 | 81 | getText called with fewer arguments than its translation's %N placeholders |
 | 42.20.4 | 82 | loadstring/loadstream removed (back in 42.21) |
+| 42.22.0 | 84 | getGameMode() returns an object, not a string; Last Stand replaced by Challenges |
 
 Rules is the running total added up to that version, counted from the current rule files. Rules with `fixed_in` stop firing at that version.
 
@@ -141,7 +142,7 @@ To add a rule: edit the appropriate version file, test with `pz-mod-checker scan
 
 ## Roadmap
 
-- [x] Scanner with 82 version-keyed rules
+- [x] Scanner with 84 version-keyed rules
 - [x] Crash log diagnostics with mod attribution
 - [x] Mod manager with profiles
 - [x] Bisect (binary search for crashing mod)
